@@ -1,0 +1,14 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - DB_PATH=/data/wenuke.db
+    volumes:
+      - wenuke_data:/data
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  wenuke_data:

@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Werken-mapu — Asistente climático para pequeños agricultores de La Araucanía. Alertas anticipadas, recomendaciones diarias y asistente IA por WhatsApp.">
+  <meta name="theme-color" content="#075e54">
+  <title>Werken-mapu — El mensajero de la tierra</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            wa: {
+              dark: '#075e54',
+              medium: '#128c7e',
+              light: '#25d366',
+              bg: '#e5ddd5',
+              panel: '#ededed',
+              chatBg: '#efeae2',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    html { scroll-behavior: smooth; }
+    .hero-pattern {
+      background: linear-gradient(135deg, #075e54 0%, #128c7e 40%, #25d366 100%);
+    }
+    .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.12); }
+    .wave-divider {
+      position: relative;
+    }
+    .wave-divider::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 100%;
+      height: 60px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 60'%3E%3Cpath fill='%23ffffff' d='M0,30 C240,50 480,10 720,30 C960,50 1200,10 1440,30 L1440,60 L0,60 Z'%3E%3C/path%3E%3C/svg%3E") no-repeat bottom;
+      background-size: cover;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-in { animation: fadeUp 0.6s ease-out forwards; }
+    .delay-1 { animation-delay: 0.1s; opacity: 0; }
+    .delay-2 { animation-delay: 0.2s; opacity: 0; }
+    .delay-3 { animation-delay: 0.3s; opacity: 0; }
+  </style>
+</head>
+<body class="bg-white text-gray-800 antialiased">
+
+<!-- ==================== HERO ==================== -->
+<header class="hero-pattern text-white relative wave-divider">
+  <nav class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="text-2xl">🌱</span>
+      <span class="font-bold text-lg">Werken-mapu</span>
+    </div>
+    <div class="hidden md:flex items-center gap-6 text-sm font-medium text-white/80">
+      <a href="#como-funciona" class="hover:text-white transition-colors">Cómo funciona</a>
+      <a href="#planes" class="hover:text-white transition-colors">Planes</a>
+      <a href="#contacto" class="hover:text-white transition-colors">Contacto</a>
+      <a href="app.html" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-full transition-colors text-white">Probar Demo</a>
+    </div>
+  </nav>
+
+  <div class="max-w-6xl mx-auto px-4 py-16 md:py-24 flex flex-col md:flex-row items-center gap-10">
+    <div class="flex-1 animate-in delay-1">
+      <p class="text-green-200 text-sm font-semibold tracking-wider uppercase mb-3">La Araucanía, Chile</p>
+      <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
+        El mensajero<br class="hidden md:block"> de la tierra
+      </h1>
+      <p class="text-lg md:text-xl text-white/80 mb-8 max-w-lg">
+        Asistente climático por WhatsApp que avisa 72 horas antes de heladas, lluvias y granizo.
+        Sin apps, sin sensores. Solo información a tiempo para tu parcela.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <a href="#contacto" class="bg-wa-light hover:bg-green-600 text-white font-semibold px-8 py-3.5 rounded-full text-center transition-colors shadow-lg shadow-green-900/30">
+          Comenzar gratis
+        </a>
+        <a href="#como-funciona" class="border-2 border-white/30 hover:border-white/60 text-white font-semibold px-8 py-3.5 rounded-full text-center transition-colors">
+          Cómo funciona
+        </a>
+      </div>
+    </div>
+    <div class="flex-1 animate-in delay-2 hidden md:flex justify-center">
+      <!-- Phone mockup -->
+      <div class="relative w-72 h-[500px] bg-white rounded-[3rem] shadow-2xl border-4 border-gray-800 overflow-hidden">
+        <div class="bg-wa-dark h-16 flex items-center px-5 gap-2">
+          <span class="text-lg">🌱</span>
+          <span class="text-white font-semibold text-sm">Werken-mapu</span>
+        </div>
+        <div class="bg-wa-chatBg h-[400px] p-3 space-y-2 overflow-y-auto">
+          <div class="flex gap-2">
+            <span class="w-7 h-7 bg-wa-medium rounded-full flex items-center justify-center text-xs text-white">🌱</span>
+            <div class="bg-white rounded-lg rounded-bl-none px-3 py-2 shadow-sm max-w-[85%] text-xs border border-gray-100">
+              Buenos días, Don Manuel ☀️<br>
+              Hoy no hay riesgo de helada en su sector. Temperatura entre 6°C y 14°C. Buen día para fumigar.
+            </div>
+          </div>
+          <div class="flex justify-end">
+            <div class="bg-[#d9fdd3] rounded-lg rounded-br-none px-3 py-2 shadow-sm max-w-[85%] text-xs">¿Y mañana?</div>
+          </div>
+          <div class="flex gap-2">
+            <span class="w-7 h-7 bg-wa-medium rounded-full flex items-center justify-center text-xs text-white">🌱</span>
+            <div class="bg-white rounded-lg rounded-bl-none px-3 py-2 shadow-sm max-w-[85%] text-xs border border-gray-100">
+              Mañana hay ALERTA DE HELADA 🚨<br>
+              Temperatura bajará a -1°C a las 04:30. Cubra sus papas esta noche. No riegue.
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <span class="w-7 h-7 bg-wa-medium rounded-full flex items-center justify-center text-xs text-white">🌱</span>
+            <div class="bg-white rounded-lg rounded-bl-none px-3 py-2 shadow-sm max-w-[85%] text-xs border border-gray-100">
+              🌧️ Viernes: 25mm de lluvia. No fumigue jueves ni viernes. Aproveche miércoles para cosechar.
+            </div>
+          </div>
+        </div>
+        <div class="bg-wa-panel h-12 border-t border-gray-200 flex items-center px-3">
+          <div class="flex-1 bg-white rounded-full h-8 border border-gray-200 flex items-center px-3">
+            <span class="text-xs text-gray-400">Escribir...</span>
+          </div>
+          <span class="ml-2 w-8 h-8 bg-wa-light rounded-full flex items-center justify-center">▶</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ==================== PROBLEM ==================== -->
+<section class="bg-white py-16 md:py-20">
+  <div class="max-w-6xl mx-auto px-4">
+    <div class="text-center mb-12">
+      <p class="text-wa-medium font-semibold text-sm tracking-wider uppercase mb-2">El problema</p>
+      <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+        Hasta el 30% de la cosecha<br class="hidden md:block"> se pierde por falta de información
+      </h2>
+      <p class="text-gray-500 max-w-2xl mx-auto text-lg">
+        Los pequeños agricultores de La Araucanía toman decisiones basándose en el pronóstico del tiempo de la tele — diseñado para cientos de kilómetros, no para su parcela.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+      <!-- Card 1 -->
+      <div class="card-hover bg-red-50 border-l-4 border-red-500 rounded-r-xl p-6 animate-in delay-1">
+        <span class="text-3xl">❄️</span>
+        <h3 class="font-bold text-lg mt-3 mb-2">Heladas sin aviso</h3>
+        <p class="text-gray-600 text-sm">
+          Una helada que no se anticipó arruina meses de trabajo en una sola noche. Sin alerta temprana, no hay tiempo de proteger el cultivo.
+        </p>
+      </div>
+      <!-- Card 2 -->
+      <div class="card-hover bg-cyan-50 border-l-4 border-cyan-500 rounded-r-xl p-6 animate-in delay-2">
+        <span class="text-3xl">🌧️</span>
+        <h3 class="font-bold text-lg mt-3 mb-2">Fumigación perdida</h3>
+        <p class="text-gray-600 text-sm">
+          Una lluvia que no se previó lava los pesticidas aplicados el día anterior. Plata y trabajo tirados. Y el cultivo queda desprotegido.
+        </p>
+      </div>
+      <!-- Card 3 -->
+      <div class="card-hover bg-amber-50 border-l-4 border-amber-500 rounded-r-xl p-6 animate-in delay-3">
+        <span class="text-3xl">🌾</span>
+        <h3 class="font-bold text-lg mt-3 mb-2">Decisiones a ciegas</h3>
+        <p class="text-gray-600 text-sm">
+          Sin datos precisos de su parcela, el agricultor decide cuándo sembrar, regar o cosechar basándose en intuición. Y la intuición no siempre acierta.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SOLUTION ==================== -->
+<section class="bg-gray-50 py-16 md:py-20">
+  <div class="max-w-6xl mx-auto px-4">
+    <div class="flex flex-col md:flex-row items-center gap-10">
+      <div class="flex-1 animate-in delay-1">
+        <p class="text-wa-medium font-semibold text-sm tracking-wider uppercase mb-2">La solución</p>
+        <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+          Un consultor agrícola<br class="hidden md:block"> en el bolsillo
+        </h2>
+        <p class="text-gray-600 text-lg mb-6">
+          Werken-mapu —"mensajero de la tierra" en mapudungún— es un asistente climático que llega donde el agricultor ya está: en su teléfono, por WhatsApp, sin necesidad de descargar nada.
+        </p>
+        <ul class="space-y-4">
+          <li class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 bg-wa-light rounded-full flex items-center justify-center text-white text-sm font-bold mt-0.5">✓</span>
+            <div>
+              <strong class="text-gray-900">Alertas anticipadas 48–72 horas</strong>
+              <p class="text-gray-500 text-sm">Helada, lluvia intensa, viento fuerte y granizo. Personalizadas por cultivo y ubicación exacta.</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 bg-wa-light rounded-full flex items-center justify-center text-white text-sm font-bold mt-0.5">✓</span>
+            <div>
+              <strong class="text-gray-900">Recomendaciones diarias</strong>
+              <p class="text-gray-500 text-sm">¿Conviene fumigar hoy? ¿Regar? ¿Sembrar? ¿Cosechar? Respuestas concretas basadas en datos reales.</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 bg-wa-light rounded-full flex items-center justify-center text-white text-sm font-bold mt-0.5">✓</span>
+            <div>
+              <strong class="text-gray-900">Asistente conversacional 24/7</strong>
+              <p class="text-gray-500 text-sm">Preguntale en español natural. Te responde con datos de tu parcela, sin tecnicismos.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <div class="flex-1 flex justify-center animate-in delay-2">
+        <div class="bg-white rounded-2xl shadow-xl p-8 max-w-sm border border-gray-100">
+          <div class="flex items-center gap-3 mb-6">
+            <span class="text-3xl">📱</span>
+            <div>
+              <p class="font-bold text-gray-900 text-lg">WhatsApp</p>
+              <p class="text-gray-400 text-sm">+56 9 XXXX XXXX</p>
+            </div>
+          </div>
+          <div class="space-y-4 bg-wa-chatBg rounded-xl p-4">
+            <div class="flex gap-2">
+              <span class="w-7 h-7 bg-wa-medium rounded-full flex items-center justify-center text-xs">🌱</span>
+              <div class="bg-white rounded-lg rounded-bl-none px-3 py-2 shadow-sm text-sm border border-gray-100">
+                🚨 Don Manuel, mañana riesgo de helada en su sector de Padre Las Casas. No riegue esta tarde. Cubra sus papas esta noche.
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <span class="w-7 h-7 bg-wa-medium rounded-full flex items-center justify-center text-xs">🌱</span>
+              <div class="bg-white rounded-lg rounded-bl-none px-3 py-2 shadow-sm text-sm border border-gray-100">
+                📊 Viernes: 6°C – 14°C, 25mm lluvia. Recomendación: no fumigar jueves ni viernes. Buen día para cosechar miércoles.
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <span class="w-7 h-7 bg-wa-medium rounded-full flex items-center justify-center text-xs">🌱</span>
+              <div class="bg-white rounded-lg rounded-bl-none px-3 py-2 shadow-sm text-sm border border-gray-100">
+                💰 Precio papa hoy en Lo Valledor: $650/kg. Tendencia estable. Buen momento para vender.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== WORKFLOW ==================== -->
+<section id="como-funciona" class="bg-white py-16 md:py-20">
+  <div class="max-w-6xl mx-auto px-4">
+    <div class="text-center mb-14">
+      <p class="text-wa-medium font-semibold text-sm tracking-wider uppercase mb-2">Workflow</p>
+      <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Así de simple es empezar</h2>
+      <p class="text-gray-500 max-w-xl mx-auto">Cuatro pasos. Sin apps, sin sensores, sin complicaciones.</p>
+    </div>
+
+    <div class="grid md:grid-cols-4 gap-6 max-w-5xl mx-auto">
+      <!-- Step 1 -->
+      <div class="text-center animate-in delay-1">
+        <div class="w-16 h-16 bg-wa-chatBg rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-sm">💬</div>
+        <span class="bg-wa-light text-white text-xs font-bold px-3 py-1 rounded-full">Paso 1</span>
+        <h3 class="font-bold text-lg mt-3 mb-2">Contactanos</h3>
+        <p class="text-gray-500 text-sm">Escribinos por WhatsApp o llená el formulario. Sin descargas, sin instalar nada.</p>
+      </div>
+      <!-- Step 2 -->
+      <div class="text-center animate-in delay-2">
+        <div class="w-16 h-16 bg-wa-chatBg rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-sm">📍</div>
+        <span class="bg-wa-medium text-white text-xs font-bold px-3 py-1 rounded-full">Paso 2</span>
+        <h3 class="font-bold text-lg mt-3 mb-2">Marcá tu parcela</h3>
+        <p class="text-gray-500 text-sm">Compartinos la ubicación por WhatsApp o seleccionala en el mapa. Precision de parcela.</p>
+      </div>
+      <!-- Step 3 -->
+      <div class="text-center animate-in delay-3">
+        <div class="w-16 h-16 bg-wa-chatBg rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-sm">🌱</div>
+        <span class="bg-wa-dark text-white text-xs font-bold px-3 py-1 rounded-full">Paso 3</span>
+        <h3 class="font-bold text-lg mt-3 mb-2">Elegí tu plan</h3>
+        <p class="text-gray-500 text-sm">Plan libre gratuito o premium a $3.000/mes con recomendaciones personalizadas.</p>
+      </div>
+      <!-- Step 4 -->
+      <div class="text-center animate-in" style="animation-delay: 0.4s; opacity: 0;">
+        <div class="w-16 h-16 bg-wa-chatBg rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-sm">📲</div>
+        <span class="bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full">Paso 4</span>
+        <h3 class="font-bold text-lg mt-3 mb-2">Recibí alertas</h3>
+        <p class="text-gray-500 text-sm">Alertas automáticas por WhatsApp. Recomendaciones diarias. Asistente IA 24/7.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== PRICING ==================== -->
+<section id="planes" class="bg-gray-50 py-16 md:py-20">
+  <div class="max-w-6xl mx-auto px-4">
+    <div class="text-center mb-12">
+      <p class="text-wa-medium font-semibold text-sm tracking-wider uppercase mb-2">Planes</p>
+      <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Simple, transparente, justo</h2>
+      <p class="text-gray-500 max-w-xl mx-auto">El plan libre informa. El plan premium acompaña cada decisión.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+      <!-- FREE -->
+      <div class="card-hover bg-white rounded-2xl shadow-lg border border-gray-100 p-8 animate-in delay-1 relative">
+        <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-wa-dark text-white text-sm font-bold px-4 py-1.5 rounded-full">Plan Libre</div>
+        <div class="text-center mt-4 mb-6">
+          <p class="text-5xl font-extrabold text-gray-900">$0</p>
+          <p class="text-gray-400 text-sm mt-1">para siempre</p>
+        </div>
+        <ul class="space-y-3 mb-8">
+          <li class="flex items-center gap-2 text-sm">
+            <span class="text-wa-light font-bold">✓</span> Alertas básicas de helada, lluvia y viento
+          </li>
+          <li class="flex items-center gap-2 text-sm">
+            <span class="text-wa-light font-bold">✓</span> 1 ubicación (parcela)
+          </li>
+          <li class="flex items-center gap-2 text-sm">
+            <span class="text-wa-light font-bold">✓</span> Pronóstico a 7 días
+          </li>
+          <li class="flex items-center gap-2 text-sm">
+            <span class="text-wa-light font-bold">✓</span> Acceso por WhatsApp y web
+          </li>
+          <li class="flex items-center gap-2 text-sm text-gray-300">
+            <span class="text-gray-300">✗</span> Recomendaciones personalizadas por cultivo
+          </li>
+          <li class="flex items-center gap-2 text-sm text-gray-300">
+            <span class="text-gray-300">✗</span> Asistente IA conversacional 24/7
+          </li>
+          <li class="flex items-center gap-2 text-sm text-gray-300">
+            <span class="text-gray-300">✗</span> Precios de mercado ODEPA
+          </li>
+          <li class="flex items-center gap-2 text-sm text-gray-300">
+            <span class="text-gray-300">✗</span> Historial climático de tu zona
+          </li>
+        </ul>
+        <a href="#contacto" class="block text-center border-2 border-wa-light text-wa-medium hover:bg-wa-light hover:text-white font-semibold px-6 py-3 rounded-full transition-colors">
+          Empezar gratis
+        </a>
+      </div>
+
+      <!-- PREMIUM -->
+      <div class="card-hover bg-white rounded-2xl shadow-xl border-2 border-wa-light p-8 animate-in delay-2 relative">
+        <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-wa-light text-white text-sm font-bold px-4 py-1.5 rounded-full">Plan Premium</div>
+        <div class="text-center mt-4 mb-6">
+          <p class="text-5xl font-extrabold text-gray-900">$3.000</p>
+          <p class="text-gray-400 text-sm mt-1">CLP / mes</p>
+        </div>
+        <ul class="space-y-3 mb-8">
+          <li class="flex items-center gap-2 text-sm">
+            <span class="text-wa-light font-bold">✓</span> <strong>Todo lo del plan libre</strong>
+          </li>
+          <li class="flex items-center gap-2 text-sm">
+            <span class="text-wa-light font-bold">✓</span> Múltiples parcelas (hasta 10)
+          </li>
+          <li class="flex items-center gap-2 text-sm">
+            <span class="text-wa-light font-bold">✓</span> Alertas personalizadas por cultivo y etapa
+          </li>
+          <li class="flex items-center gap-2 text-sm">
+            <span class="text-wa-light font-bold">✓</span> Asistente IA conversacional 24/7
+          </li>
+          <li class="flex items-center gap-2 text-sm">
+            <span class="text-wa-light font-bold">✓</span> Recomendaciones de fumigar, regar, sembrar, cosechar
+          </li>
+          <li class="flex items-center gap-2 text-sm">
+            <span class="text-wa-light font-bold">✓</span> Análisis de precios de mercado (ODEPA)
+          </li>
+          <li class="flex items-center gap-2 text-sm">
+            <span class="text-wa-light font-bold">✓</span> Historial climático 5-10 años
+          </li>
+          <li class="flex items-center gap-2 text-sm">
+            <span class="text-wa-light font-bold">✓</span> Calendario de rotación de cultivos
+          </li>
+        </ul>
+        <a href="#contacto" class="block text-center bg-wa-light hover:bg-green-600 text-white font-semibold px-6 py-3 rounded-full transition-colors shadow-lg shadow-green-900/20">
+          Quiero Premium
+        </a>
+      </div>
+    </div>
+
+    <!-- B2B -->
+    <div class="max-w-4xl mx-auto mt-8 bg-wa-dark text-white rounded-2xl p-8 animate-in delay-3">
+      <div class="flex flex-col md:flex-row items-center gap-6">
+        <div class="flex-1">
+          <h3 class="text-xl font-bold mb-2">¿Cooperativa o PRODESAL?</h3>
+          <p class="text-green-100 text-sm">
+            Paquetes B2B para 100–500 agricultores afiliados. $1.500 CLP/mes por agricultor, pagado por la cooperativa o INDAP.
+            Mismo beneficio premium, administración centralizada, reportes de uso.
+          </p>
+        </div>
+        <a href="#contacto" class="flex-shrink-0 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-6 py-3 rounded-full transition-colors text-sm">
+          Hablar con ventas
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== CONTACT ==================== -->
+<section id="contacto" class="bg-white py-16 md:py-20">
+  <div class="max-w-4xl mx-auto px-4">
+    <div class="text-center mb-12">
+      <p class="text-wa-medium font-semibold text-sm tracking-wider uppercase mb-2">Contacto</p>
+      <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Empezá hoy mismo</h2>
+      <p class="text-gray-500 max-w-xl mx-auto">
+        Dejanos tus datos y te contactamos por WhatsApp para activar tu cuenta. Sin compromiso. El plan libre es gratis para siempre.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-5 gap-8">
+      <!-- Form -->
+      <div class="md:col-span-3 animate-in delay-1">
+        <form id="registro-form" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-5">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">Nombre completo</label>
+            <input type="text" name="nombre" required minlength="2" placeholder="Ej: Manuel Carrasco"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent transition-shadow">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">WhatsApp</label>
+            <input type="tel" name="whatsapp" required placeholder="+56912345678"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent transition-shadow">
+            <p class="text-xs text-gray-400 mt-1">Número chileno con +56</p>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1.5">Ubicación (Latitud)</label>
+              <input type="number" name="lat" step="0.0001" min="-90" max="90" placeholder="-38.7359" required
+                class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent font-mono transition-shadow">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1.5">Ubicación (Longitud)</label>
+              <input type="number" name="lon" step="0.0001" min="-180" max="180" placeholder="-72.5904" required
+                class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent font-mono transition-shadow">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">Cultivos</label>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-wa-light transition-colors">
+                <input type="checkbox" name="cultivos" value="papa" checked class="accent-wa-light"> Papa
+              </label>
+              <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-wa-light transition-colors">
+                <input type="checkbox" name="cultivos" value="trigo" class="accent-wa-light"> Trigo
+              </label>
+              <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-wa-light transition-colors">
+                <input type="checkbox" name="cultivos" value="manzano" class="accent-wa-light"> Manzano
+              </label>
+              <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-wa-light transition-colors">
+                <input type="checkbox" name="cultivos" value="general" class="accent-wa-light"> General
+              </label>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">Plan</label>
+            <div class="flex gap-3">
+              <label class="flex-1 flex items-center gap-2 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-wa-light transition-colors has-[:checked]:border-wa-light has-[:checked]:bg-green-50">
+                <input type="radio" name="plan" value="free" checked class="accent-wa-light"> Libre ($0)
+              </label>
+              <label class="flex-1 flex items-center gap-2 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-wa-light transition-colors has-[:checked]:border-wa-light has-[:checked]:bg-green-50">
+                <input type="radio" name="plan" value="premium" class="accent-wa-light"> Premium ($3.000/mes)
+              </label>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">Nombre de tu parcela</label>
+            <input type="text" name="nombre_parcela" placeholder="Ej: Parcela Sur, Lote principal"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent transition-shadow">
+          </div>
+          <button type="submit" class="w-full bg-wa-light hover:bg-green-600 text-white font-bold px-6 py-3.5 rounded-full transition-colors shadow-lg shadow-green-900/20 text-lg">
+            Registrarme
+          </button>
+          <p id="form-mensaje" class="text-center text-sm hidden"></p>
+        </form>
+      </div>
+
+      <!-- Contact info -->
+      <div class="md:col-span-2 space-y-6 animate-in delay-2">
+        <div class="bg-wa-chatBg rounded-2xl p-6">
+          <h3 class="font-bold text-lg mb-4">También por WhatsApp</h3>
+          <p class="text-gray-600 text-sm mb-4">
+            Si preferís, escribinos directamente por WhatsApp y te damos de alta al toque.
+          </p>
+          <a href="https://wa.me/569XXXXXXXX" class="inline-flex items-center gap-2 bg-wa-light text-white font-semibold px-5 py-3 rounded-full hover:bg-green-600 transition-colors text-sm">
+            <span class="text-lg">💬</span> Escribir por WhatsApp
+          </a>
+        </div>
+
+        <div class="bg-gray-50 rounded-2xl p-6">
+          <h3 class="font-bold text-lg mb-4">¿Preguntas?</h3>
+          <ul class="space-y-3 text-sm text-gray-600">
+            <li class="flex items-start gap-2">
+              <span class="text-wa-medium mt-0.5">📧</span>
+              <span>contacto@werkenmapu.cl</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-wa-medium mt-0.5">📍</span>
+              <span>Temuco, La Araucanía, Chile</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-wa-medium mt-0.5">🌐</span>
+              <a href="app.html" class="text-wa-medium hover:underline">App web →</a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Stats -->
+        <div class="bg-wa-dark text-white rounded-2xl p-6">
+          <h3 class="font-bold text-lg mb-4">Werken-mapu en números</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-2xl font-extrabold text-wa-light">40K+</p>
+              <p class="text-green-100 text-xs">Agricultores PRODESAL en La Araucanía</p>
+            </div>
+            <div>
+              <p class="text-2xl font-extrabold text-wa-light">72h</p>
+              <p class="text-green-100 text-xs">Anticipación de alertas</p>
+            </div>
+            <div>
+              <p class="text-2xl font-extrabold text-wa-light">4</p>
+              <p class="text-green-100 text-xs">Tipos de alerta climática</p>
+            </div>
+            <div>
+              <p class="text-2xl font-extrabold text-wa-light">$10</p>
+              <p class="text-green-100 text-xs">USD costo operativo / mes</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FOOTER ==================== -->
+<footer class="bg-gray-900 text-white py-12">
+  <div class="max-w-6xl mx-auto px-4">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">🌱</span>
+        <div>
+          <p class="font-bold text-lg">Werken-mapu</p>
+          <p class="text-gray-400 text-xs">El mensajero de la tierra</p>
+        </div>
+      </div>
+      <div class="flex gap-8 text-sm text-gray-400">
+        <a href="#como-funciona" class="hover:text-white transition-colors">Cómo funciona</a>
+        <a href="#planes" class="hover:text-white transition-colors">Planes</a>
+        <a href="#contacto" class="hover:text-white transition-colors">Contacto</a>
+        <a href="app.html" class="hover:text-white transition-colors">App</a>
+      </div>
+      <p class="text-gray-500 text-xs">© 2026 Werken-mapu. La Araucanía, Chile.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ==================== FORM HANDLER ==================== -->
+<script>
+const API = window.location.hostname === 'localhost'
+  ? 'http://localhost:8000'
+  : 'https://backend-beryl-nu-18.vercel.app';
+
+document.getElementById('registro-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('form-mensaje');
+  msg.className = 'text-center text-sm mt-3';
+  msg.classList.remove('hidden');
+  msg.textContent = 'Enviando...';
+  msg.className += ' text-gray-500';
+
+  const form = e.target;
+  const cultivos = [...form.querySelectorAll('input[name="cultivos"]:checked')].map(c => c.value);
+  const plan = form.querySelector('input[name="plan"]:checked').value;
+
+  const body = {
+    whatsapp: form.whatsapp.value.trim(),
+    nombre: form.nombre.value.trim(),
+    lat: parseFloat(form.lat.value),
+    lon: parseFloat(form.lon.value),
+    cultivos,
+    plan,
+    nombre_parcela: form.nombre_parcela.value.trim() || 'Parcela 1',
+  };
+
+  try {
+    const r = await fetch(`${API}/registrar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    if (r.ok) {
+      msg.textContent = '✅ ' + data.mensaje;
+      msg.className = 'text-center text-sm mt-3 text-green-600 font-medium';
+      form.reset();
+    } else {
+      msg.textContent = '❌ ' + (data.detail || 'Error al registrar');
+      msg.className = 'text-center text-sm mt-3 text-red-500';
+    }
+  } catch {
+    msg.textContent = '❌ No se pudo conectar con el servidor. Intentá de nuevo.';
+    msg.className = 'text-center text-sm mt-3 text-red-500';
+  }
+});
+</script>
+
+</body>
+</html>

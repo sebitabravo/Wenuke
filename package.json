@@ -1,0 +1,15 @@
+{
+  "name": "wenuke",
+  "version": "1.0.0",
+  "description": "Asistente climático con IA para pequeños agricultores de La Araucanía, Chile. Accesible vía web (y WhatsApp en producción), entrega alertas anticipadas y recomendaciones específicas por cultivo sin necesidad de descargar apps.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}
