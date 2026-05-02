@@ -1,13 +1,11 @@
 """Tests para el motor de reglas por cultivo."""
-import pytest
 from reglas import (
-    evaluar_reglas,
-    generar_recomendaciones,
+    _severidad_granizo,
     _severidad_helada,
     _severidad_lluvia,
     _severidad_viento,
-    _severidad_granizo,
-    REGLAS,
+    evaluar_reglas,
+    generar_recomendaciones,
 )
 
 

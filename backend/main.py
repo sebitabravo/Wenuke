@@ -1,10 +1,8 @@
 """Werken-mapu API — Asistente climático para pequeños agricultores de La Araucanía."""
 
 import logging
-import os
 from contextlib import asynccontextmanager
 from datetime import date, datetime
-from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,10 +15,7 @@ from db import (
     eliminar_parcela_async,
     init_db,
     obtener_parcelas_async,
-    obtener_todos_los_usuarios,
     obtener_usuario_por_token_async,
-    obtener_usuarios_con_cultivo_async,
-    registrar_alerta_async,
     registrar_usuario,
 )
 from llm import llm_client
@@ -28,7 +23,6 @@ from models import (
     ActualizarPlanRequest,
     ClimaResponse,
     EnviarAlertasResponse,
-    HistoricoRequest,
     HistoricoResponse,
     ParcelaRequest,
     ParcelaResponse,
@@ -48,7 +42,6 @@ from odepa import odepa_client
 from reglas import evaluar_reglas, generar_recomendaciones
 from scheduler import alert_scheduler
 from servicio_alertas import ejecutar_chequeo_alertas
-from whatsapp import whatsapp_client
 
 logging.basicConfig(
     level=logging.INFO,
@@ -316,7 +309,7 @@ async def cambiar_plan(
 # ---------------------------------------------------------------------------
 @app.get("/precios", response_model=PreciosResponse)
 async def precios(
-    producto: Optional[str] = Query(None, description="Filtrar por producto: papa, trigo, manzano"),
+    producto: str | None = Query(None, description="Filtrar por producto: papa, trigo, manzano"),
 ):
     if producto:
         if producto not in ("papa", "trigo", "manzano"):

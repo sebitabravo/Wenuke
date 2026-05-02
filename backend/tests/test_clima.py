@@ -1,5 +1,4 @@
 """Tests para el cliente de clima."""
-import pytest
 from clima import OpenMeteoClient
 
 

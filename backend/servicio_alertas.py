@@ -1,5 +1,6 @@
 """Servicio de alertas — lógica compartida entre API y scheduler."""
 import logging
+
 from clima import clima_client
 from db import (
     obtener_usuarios_con_cultivo_async,

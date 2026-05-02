@@ -1,10 +1,9 @@
 """Modelos Pydantic v2 para validación de datos — Wenuke API."""
 
 import re
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
-
 
 # ---------------------------------------------------------------------------
 # Alerta climática
@@ -29,7 +28,7 @@ class Alerta(BaseModel):
         ...,
         description="Fecha en formato ISO 8601 (YYYY-MM-DD)",
     )
-    hora: Optional[str] = Field(
+    hora: str | None = Field(
         default=None,
         description="Hora puntual si aplica (HH:MM, 24h). Null si la alerta cubre todo el día",
     )
@@ -63,7 +62,7 @@ class ClimaResponse(BaseModel):
         ...,
         description="Coordenadas geográficas de la consulta",
     )
-    alertas: List[Alerta] = Field(
+    alertas: list[Alerta] = Field(
         default_factory=list,
         description="Lista de alertas activas para los próximos días",
     )
@@ -71,7 +70,7 @@ class ClimaResponse(BaseModel):
         ...,
         description="Resumen numérico del pronóstico",
     )
-    raw_forecast: Optional[dict] = Field(
+    raw_forecast: dict | None = Field(
         default=None,
         description="Datos crudos de Open-Meteo. Solo presente si se solicita explícitamente",
     )
@@ -217,7 +216,7 @@ class RegistrarRequest(BaseModel):
         le=180,
         description="Longitud de la parcela",
     )
-    cultivos: List[CHILE_CULTIVOS] = Field(
+    cultivos: list[CHILE_CULTIVOS] = Field(
         ...,
         min_length=1,
         description="Lista de cultivos a monitorear. Valores permitidos: papa, trigo, manzano, general",
@@ -300,7 +299,7 @@ class ParcelaRequest(BaseModel):
     nombre: str = Field(..., min_length=1, description="Nombre de la parcela")
     lat: float = Field(..., ge=-90, le=90)
     lon: float = Field(..., ge=-180, le=180)
-    cultivos: List[CHILE_CULTIVOS] = Field(..., min_length=1)
+    cultivos: list[CHILE_CULTIVOS] = Field(..., min_length=1)
 
     model_config = {"json_schema_extra": {"examples": [
         {"nombre": "Lote Norte", "lat": -38.7, "lon": -72.6, "cultivos": ["trigo"]},
@@ -481,7 +480,7 @@ class EnviarAlertasResponse(BaseModel):
         default=0,
         description="Usuarios que recibieron al menos una alerta",
     )
-    detalle: List[dict] = Field(
+    detalle: list[dict] = Field(
         default_factory=list,
         description="Lista de envíos con usuario_id, whatsapp, cultivo y alertas enviadas",
     )
