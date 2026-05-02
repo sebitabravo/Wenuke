@@ -1,24 +1,26 @@
-"""Wenuke API — Asistente climático para pequeños agricultores de La Araucanía."""
+"""Werken-mapu API — Asistente climático para pequeños agricultores de La Araucanía."""
 
+import logging
+import os
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from clima import clima_client
 from config import config
 from db import (
-    actualizar_plan,
-    agregar_parcela,
-    eliminar_parcela,
+    actualizar_plan_async,
+    agregar_parcela_async,
+    eliminar_parcela_async,
     init_db,
-    obtener_parcelas,
+    obtener_parcelas_async,
     obtener_todos_los_usuarios,
-    obtener_usuario_por_token,
-    obtener_usuarios_con_cultivo,
-    registrar_alerta,
+    obtener_usuario_por_token_async,
+    obtener_usuarios_con_cultivo_async,
+    registrar_alerta_async,
     registrar_usuario,
 )
 from llm import llm_client
@@ -45,9 +47,34 @@ from models import (
 from odepa import odepa_client
 from reglas import evaluar_reglas, generar_recomendaciones
 from scheduler import alert_scheduler
+from servicio_alertas import ejecutar_chequeo_alertas
 from whatsapp import whatsapp_client
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+)
+logger = logging.getLogger("wenuke.main")
+
 CULTIVOS_VALIDOS = {"papa", "trigo", "manzano", "general"}
+
+
+def _extraer_token(authorization: str) -> str:
+    """Extrae el token de un header Authorization: Bearer <token>."""
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Formato: Authorization: Bearer <token>")
+    if len(authorization) < 8:
+        raise HTTPException(status_code=401, detail="Token vacío")
+    return authorization[7:]
+
+
+async def _auth_usuario(authorization: str) -> dict:
+    """Autentica usuario via header Authorization: Bearer <token>. Retorna dict usuario."""
+    token = _extraer_token(authorization)
+    usuario = await obtener_usuario_por_token_async(token)
+    if not usuario:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    return usuario
 
 
 @asynccontextmanager
@@ -59,15 +86,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Wenuke API",
-    description="Asistente climático con IA para pequeños agricultores de La Araucanía",
+    title="Werken-mapu API",
+    description="Werken-mapu — Asistente climático con IA para pequeños agricultores de La Araucanía",
     version="0.1.0",
     lifespan=lifespan,
 )
 
+origins = config.cors_origins.split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -80,7 +108,7 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return {
-        "servicio": "Wenuke API",
+        "servicio": "Werken-mapu API",
         "version": "0.1.0",
         "estado": "operativo",
         "offline": llm_client.modo_offline,
@@ -105,7 +133,8 @@ async def clima(
     try:
         raw = await clima_client.fetch_forecast(lat, lon)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Error al consultar OpenMeteo: {e}")
+        logger.error(f"OpenMeteo forecast error: {e}")
+        raise HTTPException(status_code=502, detail="Error al consultar datos climáticos")
 
     hourly = clima_client.parse_hourly(raw)
     daily = clima_client.extract_daily(raw)
@@ -138,6 +167,8 @@ async def clima(
 @app.post("/preguntar", response_model=PreguntarResponse)
 async def preguntar(req: PreguntarRequest):
     # Obtener contexto climático para el LLM
+    resultado = {"alertas": [], "cultivo": req.cultivo}
+    resumen = {}
     try:
         raw = await clima_client.fetch_forecast(req.lat, req.lon)
         hourly = clima_client.parse_hourly(raw)
@@ -152,9 +183,7 @@ async def preguntar(req: PreguntarRequest):
             "viento_max": hoy.get("viento_max", "N/D"),
         }
     except Exception:
-        # Sin clima, el LLM igual puede responder en modo offline
-        resultado = {"alertas": [], "cultivo": req.cultivo}
-        resumen = {}
+        logger.warning("No se pudo obtener clima para /preguntar — LLM en modo offline")
 
     contexto = {
         "resumen": resumen,
@@ -200,12 +229,10 @@ async def registrar(req: RegistrarRequest):
 # Parcelas CRUD
 # ---------------------------------------------------------------------------
 @app.get("/parcelas", response_model=ParcelasListResponse)
-async def listar_parcelas(token: str = Query(..., description="Token de autenticación")):
-    usuario = obtener_usuario_por_token(token)
-    if not usuario:
-        raise HTTPException(status_code=401, detail="Token inválido")
+async def listar_parcelas(authorization: str = Header(..., description="Bearer <token>")):
+    usuario = await _auth_usuario(authorization)
 
-    parcelas = obtener_parcelas(usuario["id"])
+    parcelas = await obtener_parcelas_async(usuario["id"])
     max_parcelas = 1 if usuario["plan"] == "free" else 10
 
     return ParcelasListResponse(
@@ -217,13 +244,14 @@ async def listar_parcelas(token: str = Query(..., description="Token de autentic
 
 
 @app.post("/parcelas", response_model=ParcelaResponse)
-async def crear_parcela(req: ParcelaRequest, token: str = Query(..., description="Token de autenticación")):
-    usuario = obtener_usuario_por_token(token)
-    if not usuario:
-        raise HTTPException(status_code=401, detail="Token inválido")
+async def crear_parcela(
+    req: ParcelaRequest,
+    authorization: str = Header(..., description="Bearer <token>"),
+):
+    usuario = await _auth_usuario(authorization)
 
     try:
-        parcela_id = agregar_parcela(usuario["id"], req.model_dump())
+        parcela_id = await agregar_parcela_async(usuario["id"], req.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
 
@@ -231,12 +259,14 @@ async def crear_parcela(req: ParcelaRequest, token: str = Query(..., description
 
 
 @app.delete("/parcelas/{parcela_id}")
-async def borrar_parcela(parcela_id: int, token: str = Query(..., description="Token de autenticación")):
-    usuario = obtener_usuario_por_token(token)
-    if not usuario:
-        raise HTTPException(status_code=401, detail="Token inválido")
+async def borrar_parcela(
+    parcela_id: int,
+    authorization: str = Header(..., description="Bearer <token>"),
+):
+    usuario = await _auth_usuario(authorization)
 
-    if not eliminar_parcela(parcela_id, usuario["id"]):
+    eliminado = await eliminar_parcela_async(parcela_id, usuario["id"])
+    if not eliminado:
         raise HTTPException(status_code=404, detail="Parcela no encontrada o no pertenece al usuario")
 
     return {"mensaje": "Parcela eliminada", "parcela_id": parcela_id}
@@ -246,12 +276,10 @@ async def borrar_parcela(parcela_id: int, token: str = Query(..., description="T
 # Plan / Suscripción
 # ---------------------------------------------------------------------------
 @app.get("/plan", response_model=PlanResponse)
-async def ver_plan(token: str = Query(..., description="Token de autenticación")):
-    usuario = obtener_usuario_por_token(token)
-    if not usuario:
-        raise HTTPException(status_code=401, detail="Token inválido")
+async def ver_plan(authorization: str = Header(..., description="Bearer <token>")):
+    usuario = await _auth_usuario(authorization)
 
-    parcelas = obtener_parcelas(usuario["id"])
+    parcelas = await obtener_parcelas_async(usuario["id"])
     max_parcelas = 1 if usuario["plan"] == "free" else 10
 
     return PlanResponse(
@@ -264,13 +292,14 @@ async def ver_plan(token: str = Query(..., description="Token de autenticación"
 
 
 @app.post("/plan", response_model=PlanResponse)
-async def cambiar_plan(req: ActualizarPlanRequest):
-    usuario = obtener_usuario_por_token(req.token)
-    if not usuario:
-        raise HTTPException(status_code=401, detail="Token inválido")
+async def cambiar_plan(
+    req: ActualizarPlanRequest,
+    authorization: str = Header(..., description="Bearer <token>"),
+):
+    usuario = await _auth_usuario(authorization)
 
-    actualizado = actualizar_plan(usuario["id"], req.plan)
-    parcelas = obtener_parcelas(usuario["id"])
+    actualizado = await actualizar_plan_async(usuario["id"], req.plan)
+    parcelas = await obtener_parcelas_async(usuario["id"])
     max_parcelas = 1 if req.plan == "free" else 10
 
     return PlanResponse(
@@ -319,7 +348,8 @@ async def recomendaciones(
         hourly = clima_client.parse_hourly(raw)
         daily = clima_client.extract_daily(raw)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Error OpenMeteo: {e}")
+        logger.error(f"OpenMeteo forecast error en /recomendaciones: {e}")
+        raise HTTPException(status_code=502, detail="Error al consultar datos climáticos")
 
     recs_raw = generar_recomendaciones(hourly, daily, cultivo)
 
@@ -349,7 +379,8 @@ async def historico(
     try:
         raw = await clima_client.fetch_historico(lat, lon, inicio, fin)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Error al consultar histórico OpenMeteo: {e}")
+        logger.error(f"OpenMeteo histórico error: {e}")
+        raise HTTPException(status_code=502, detail="Error al consultar datos climáticos históricos")
 
     diarios = clima_client.parse_historico(raw)
 
@@ -387,68 +418,14 @@ async def historico(
 
 
 # ---------------------------------------------------------------------------
-# POST /enviar-alertas — Dispatch manual de alertas (mock worker)
+# POST /enviar-alertas — Dispatch manual de alertas (protegido con admin token)
 # ---------------------------------------------------------------------------
 @app.post("/enviar-alertas", response_model=EnviarAlertasResponse)
-async def enviar_alertas():
-    detalle: list[dict] = []
-    usuarios_alertados: set[int] = set()
-    envios_fallidos: int = 0
+async def enviar_alertas(authorization: str = Header(..., description="Admin Bearer <token>")):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Admin token requerido — usar Authorization: Bearer <token>")
+    if authorization[7:] != config.admin_token:
+        raise HTTPException(status_code=403, detail="Admin token inválido")
 
-    for cultivo in ["papa", "trigo", "manzano"]:
-        usuarios = obtener_usuarios_con_cultivo(cultivo)
-        if not usuarios:
-            continue
-
-        # Agrupar usuarios por ubicación (cache hit)
-        ubicaciones_procesadas: dict[str, dict] = {}
-
-        for u in usuarios:
-            key = f"{round(u['lat'], 2)},{round(u['lon'], 2)}"
-
-            if key not in ubicaciones_procesadas:
-                try:
-                    raw = await clima_client.fetch_forecast(u["lat"], u["lon"])
-                    hourly = clima_client.parse_hourly(raw)
-                    resultado = evaluar_reglas(hourly, cultivo)
-                except Exception:
-                    continue
-                ubicaciones_procesadas[key] = resultado
-            else:
-                resultado = ubicaciones_procesadas[key]
-
-            alertas_usuario = resultado.get("alertas", [])
-            if not alertas_usuario:
-                continue
-
-            # Registrar alertas en BD
-            for alerta in alertas_usuario:
-                registrar_alerta(u["id"], alerta["tipo"], alerta["mensaje"])
-
-            # Enviar por WhatsApp si está configurado
-            if whatsapp_client.activo:
-                envio = await whatsapp_client.enviar_plantilla_alerta(
-                    u["whatsapp"], alertas_usuario, cultivo
-                )
-                if not envio["enviado"]:
-                    envios_fallidos += 1
-
-            usuarios_alertados.add(u["id"])
-            detalle.append({
-                "usuario_id": u["id"],
-                "whatsapp": u["whatsapp"],
-                "nombre": u["nombre"],
-                "cultivo": cultivo,
-                "alertas": [
-                    {"tipo": a["tipo"], "severidad": a["severidad"], "dia": a.get("dia", "")}
-                    for a in alertas_usuario
-                ],
-            })
-
-    return EnviarAlertasResponse(
-        enviadas=sum(len(d["alertas"]) for d in detalle),
-        usuarios_afectados=len(usuarios_alertados),
-        detalle=detalle,
-        envios_fallidos=envios_fallidos,
-        whatsapp_activo=whatsapp_client.activo,
-    )
+    resultado = await ejecutar_chequeo_alertas()
+    return EnviarAlertasResponse(**resultado)

@@ -1,8 +1,31 @@
 """Capa de persistencia — SQLite con soporte multi-parcela y planes."""
 
+import asyncio
+import functools
 import secrets
 import sqlite3
+
 from config import config
+
+# NOTA: SQLite es síncrono. Las consultas breves no bloquean significativamente
+# el event loop de FastAPI. Para producción con alta concurrencia, migrar a
+# aiosqlite o Turso.
+_executor = None
+
+
+def _get_executor():
+    global _executor
+    if _executor is None:
+        import concurrent.futures
+        _executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+    return _executor
+
+
+async def _run_async(func, *args, **kwargs):
+    """Ejecuta función síncrona en thread pool para no bloquear event loop."""
+    loop = asyncio.get_running_loop()
+    wrapped = functools.partial(func, *args, **kwargs)
+    return await loop.run_in_executor(_get_executor(), wrapped)
 
 
 def get_db() -> sqlite3.Connection:
@@ -86,6 +109,7 @@ def registrar_usuario(data: dict) -> dict:
     """Registra usuario, parcela inicial y cultivos. Retorna dict con id y token."""
     conn = get_db()
     token = _generar_token()
+    conn.execute("BEGIN")
     try:
         cur = conn.execute(
             "INSERT INTO usuarios (whatsapp, nombre, plan, token) VALUES (?, ?, ?, ?)",
@@ -111,6 +135,9 @@ def registrar_usuario(data: dict) -> dict:
     except sqlite3.IntegrityError:
         conn.rollback()
         raise ValueError(f"WhatsApp {data['whatsapp']} ya registrado")
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -151,17 +178,31 @@ def obtener_todos_los_usuarios() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def _obtener_parcelas_usuario(conn: sqlite3.Connection, usuario_id: int) -> list[dict]:
-    """Helper interno — obtiene parcelas con cultivos."""
+    """Helper interno — obtiene parcelas con cultivos (dos queries, sin N+1)."""
     parcelas = conn.execute(
         "SELECT * FROM parcelas WHERE usuario_id = ?", (usuario_id,)
     ).fetchall()
+
+    if not parcelas:
+        return []
+
+    # Cargar todos los cultivos en una sola query
+    parcelas_ids = [p["id"] for p in parcelas]
+    placeholders = ','.join('?' * len(parcelas_ids))
+    cultivos_raw = conn.execute(
+        f"SELECT parcela_id, tipo FROM cultivos WHERE parcela_id IN ({placeholders})",
+        parcelas_ids
+    ).fetchall()
+
+    # Indexar cultivos por parcela_id
+    cultivos_por_parcela: dict[int, list[str]] = {}
+    for c in cultivos_raw:
+        cultivos_por_parcela.setdefault(c["parcela_id"], []).append(c["tipo"])
+
     resultado = []
     for p in parcelas:
         p = dict(p)
-        cultivos = conn.execute(
-            "SELECT tipo FROM cultivos WHERE parcela_id = ?", (p["id"],)
-        ).fetchall()
-        p["cultivos"] = [c["tipo"] for c in cultivos]
+        p["cultivos"] = cultivos_por_parcela.get(p["id"], [])
         resultado.append(p)
     return resultado
 
@@ -192,20 +233,27 @@ def agregar_parcela(usuario_id: int, data: dict) -> int:
             conn.close()
             raise ValueError("Plan gratuito limitado a 1 parcela. Subí a premium para múltiples parcelas.")
 
-    cur = conn.execute(
-        "INSERT INTO parcelas (usuario_id, nombre, lat, lon) VALUES (?, ?, ?, ?)",
-        (usuario_id, data["nombre"], data["lat"], data["lon"]),
-    )
-    parcela_id = cur.lastrowid
-
-    for cultivo in data.get("cultivos", ["general"]):
-        conn.execute(
-            "INSERT INTO cultivos (parcela_id, tipo) VALUES (?, ?)",
-            (parcela_id, cultivo),
+    conn.execute("BEGIN")
+    try:
+        cur = conn.execute(
+            "INSERT INTO parcelas (usuario_id, nombre, lat, lon) VALUES (?, ?, ?, ?)",
+            (usuario_id, data["nombre"], data["lat"], data["lon"]),
         )
+        parcela_id = cur.lastrowid
 
-    conn.commit()
-    conn.close()
+        for cultivo in data.get("cultivos", ["general"]):
+            conn.execute(
+                "INSERT INTO cultivos (parcela_id, tipo) VALUES (?, ?)",
+                (parcela_id, cultivo),
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
     return parcela_id
 
 
@@ -256,3 +304,39 @@ def registrar_alerta(usuario_id: int, tipo: str, mensaje: str):
     )
     conn.commit()
     conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Wrappers asíncronos — usar en endpoints async de FastAPI
+# ---------------------------------------------------------------------------
+
+async def registrar_usuario_async(data: dict) -> dict:
+    return await _run_async(registrar_usuario, data)
+
+
+async def obtener_usuario_por_token_async(token: str) -> dict | None:
+    return await _run_async(obtener_usuario_por_token, token)
+
+
+async def obtener_parcelas_async(usuario_id: int) -> list[dict]:
+    return await _run_async(obtener_parcelas, usuario_id)
+
+
+async def agregar_parcela_async(usuario_id: int, data: dict) -> int:
+    return await _run_async(agregar_parcela, usuario_id, data)
+
+
+async def eliminar_parcela_async(parcela_id: int, usuario_id: int) -> bool:
+    return await _run_async(eliminar_parcela, parcela_id, usuario_id)
+
+
+async def actualizar_plan_async(usuario_id: int, plan: str) -> dict:
+    return await _run_async(actualizar_plan, usuario_id, plan)
+
+
+async def obtener_usuarios_con_cultivo_async(tipo: str) -> list[dict]:
+    return await _run_async(obtener_usuarios_con_cultivo, tipo)
+
+
+async def registrar_alerta_async(usuario_id: int, tipo: str, mensaje: str):
+    return await _run_async(registrar_alerta, usuario_id, tipo, mensaje)

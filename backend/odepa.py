@@ -12,8 +12,6 @@ import asyncio
 import logging
 from datetime import datetime
 
-import httpx
-
 logger = logging.getLogger("wenuke.odepa")
 
 # Precios de referencia por producto (CLP/kg) — actualizados cada temporada
@@ -74,7 +72,7 @@ class ODEPAClient:
         try:
             precios = await self._scrape_odepa(producto)
             if precios:
-                precios["producto"] = producto  # clave de búsqueda para el modelo
+                precios["producto"] = producto
                 self.cache[producto] = precios
                 self.cache_ts[producto] = time.time()
                 return precios
@@ -91,77 +89,26 @@ class ODEPAClient:
             return ref
 
         return {"error": f"Producto '{producto}' no disponible", "fuente": "ninguna"}
-        """Obtiene precio actual y referencia para un producto. Con cache de 6h."""
-        import time
-
-        if producto in self.cache:
-            ts = self.cache_ts.get(producto, 0)
-            if time.time() - ts < 6 * 3600:
-                return self.cache[producto]
-
-        # Intentar scraping real
-        try:
-            precios = await self._scrape_odepa(producto)
-            if precios:
-                self.cache[producto] = precios
-                self.cache_ts[producto] = time.time()
-                return precios
-        except Exception as e:
-            logger.warning(f"Scraping ODEPA falló para {producto}: {e}")
-
-        # Fallback a datos de referencia
-        ref = PRECIOS_REFERENCIA.get(producto)
-        if ref:
-            ref["fuente"] = "referencia"
-            ref["actualizado"] = datetime.now().isoformat()
-            return ref
-
-        return {"error": f"Producto '{producto}' no disponible", "fuente": "ninguna"}
 
     async def _scrape_odepa(self, producto: str) -> dict | None:
-        """Intenta obtener precios reales desde ODEPA. Retorna None si falla."""
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            r = await client.get(
-                self.URL_ODEPA,
-                headers={"User-Agent": "Wenuke/0.1 (asistente-agricola)"},
-                follow_redirects=True,
-            )
-            r.raise_for_status()
+        """Retorna None — scraping real no implementado.
 
-            # ODEPA entrega HTML. Buscamos tablas de precios.
-            # Si encontramos el producto, extraemos el precio más reciente.
-            html = r.text.lower()
-
-            nombres = {
-                "papa": ["papa", "papas"],
-                "trigo": ["trigo", "harina"],
-                "manzano": ["manzana", "manzanas"],
-            }
-
-            for termino in nombres.get(producto, [producto.lower()]):
-                if termino in html:
-                    return {
-                        "nombre": PRECIOS_REFERENCIA[producto]["nombre"],
-                        "unidad": PRECIOS_REFERENCIA[producto]["unidad"],
-                        "precio_actual": PRECIOS_REFERENCIA[producto]["precio_actual"],
-                        "precio_min_3m": PRECIOS_REFERENCIA[producto]["precio_min_3m"],
-                        "precio_max_3m": PRECIOS_REFERENCIA[producto]["precio_max_3m"],
-                        "mercado": PRECIOS_REFERENCIA[producto]["mercado"],
-                        "tendencia": PRECIOS_REFERENCIA[producto]["tendencia"],
-                        "nota": PRECIOS_REFERENCIA[producto]["nota"],
-                        "fuente": "odepa",
-                        "actualizado": datetime.now().isoformat(),
-                    }
-
-            return None
+        Nota: El scraping real requiere parseo de la estructura HTML específica
+        de ODEPA, que cambia frecuentemente. Para MVP de portafolio usamos datos
+        de referencia (PRECIOS_REFERENCIA) como fuente primaria.
+        """
+        logger.debug(
+            f"Scraping ODEPA omitido para '{producto}' — usando datos de referencia"
+        )
+        return None
 
     async def fetch_todos(self) -> list[dict]:
-        """Obtiene precios de todos los productos soportados."""
-        resultados = []
-        for producto in ["papa", "trigo", "manzano"]:
-            precios = await self.fetch_precios(producto)
-            resultados.append(precios)
-        return resultados
+        """Obtiene precios de todos los productos soportados en paralelo."""
+        productos = ["papa", "trigo", "manzano"]
+        resultados = await asyncio.gather(
+            *(self.fetch_precios(p) for p in productos)
+        )
+        return list(resultados)
 
 
 # Singleton

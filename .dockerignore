@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+.env.local
+.git/
+.gitignore
+*.db
+*.db-shm
+*.db-wal
+node_modules/
+.vercel/
+.DS_Store
+*.md
+docs/

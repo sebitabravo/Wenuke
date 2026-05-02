@@ -9,7 +9,9 @@
     // API URL — automático según entorno
     window.API_BASE = window.location.hostname === 'localhost'
       ? 'http://localhost:8000'
-      : 'https://backend-beryl-nu-18.vercel.app';
+      : (window.location.hostname.includes('vercel.app')
+          ? window.location.origin.replace('frontend', 'backend')
+          : 'https://backend-beryl-nu-18.vercel.app');
   </script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -60,7 +62,7 @@
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 bg-wa-medium rounded-full flex items-center justify-center text-xl shadow-inner">🌱</div>
       <div class="text-white">
-        <h1 class="text-base font-semibold leading-tight">Wenuke</h1>
+        <h1 class="text-base font-semibold leading-tight">Werken-mapu</h1>
         <p class="text-xs text-green-200 flex items-center gap-1">
           <span class="w-1.5 h-1.5 rounded-full" id="status-dot"></span>
           <span id="header-status">Conectando...</span>
@@ -112,7 +114,7 @@
       <div class="msg-enter flex gap-2 mb-3">
         <div class="flex-shrink-0 w-9 h-9 bg-wa-medium rounded-full flex items-center justify-center text-base shadow-sm">🌱</div>
         <div class="bg-white rounded-lg rounded-bl-none px-4 py-3 max-w-[80%] shadow-sm border border-gray-100">
-          <p class="text-sm text-gray-800 font-medium mb-1">¡Hola! Soy <span class="text-wa-dark">Wenuke</span> 👋</p>
+          <p class="text-sm text-gray-800 font-medium mb-1">¡Hola! Soy <span class="text-wa-dark">Werken-mapu</span> 👋</p>
           <p class="text-sm text-gray-600">Tu asistente climático para el campo de La Araucanía. Decime qué cultivo tenés y preguntame lo que necesités.</p>
           <p class="text-xs text-gray-400 mt-2">📍 Tocá el ícono de ubicación para marcar tu parcela</p>
         </div>

@@ -329,8 +329,7 @@ class ParcelasListResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class ActualizarPlanRequest(BaseModel):
-    """Cambiar plan de suscripción."""
-    token: str = Field(..., description="Token del usuario")
+    """Cambiar plan de suscripción. Token via Authorization header."""
     plan: str = Field(..., description="free o premium")
 
     @field_validator("plan")

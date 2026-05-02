@@ -15,17 +15,17 @@ class AlertScheduler:
         self._tarea: asyncio.Task | None = None
 
     async def _chequear_y_enviar(self):
-        """Wrapper que llama al endpoint interno de alertas."""
-        from main import enviar_alertas
+        """Wrapper que ejecuta el servicio de alertas compartido."""
+        from servicio_alertas import ejecutar_chequeo_alertas
 
         logger.info("Scheduler: iniciando chequeo de alertas...")
         try:
-            resultado = await enviar_alertas()
+            resultado = await ejecutar_chequeo_alertas()
             logger.info(
-                f"Scheduler: {resultado.enviadas} alertas enviadas a "
-                f"{resultado.usuarios_afectados} usuarios "
-                f"(fallidos: {resultado.envios_fallidos}, "
-                f"whatsapp_activo: {resultado.whatsapp_activo})"
+                f"Scheduler: {resultado['enviadas']} alertas enviadas a "
+                f"{resultado['usuarios_afectados']} usuarios "
+                f"(fallidos: {resultado['envios_fallidos']}, "
+                f"whatsapp_activo: {resultado['whatsapp_activo']})"
             )
         except Exception as e:
             logger.error(f"Scheduler: error en chequeo — {e}")

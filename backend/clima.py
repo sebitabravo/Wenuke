@@ -1,8 +1,12 @@
 """Cliente de OpenMeteo — forecast gratuito sin API key."""
 
+import logging
 import time
+
 import httpx
 from config import config
+
+logger = logging.getLogger("wenuke.clima")
 
 
 class OpenMeteoClient:
@@ -43,6 +47,7 @@ class OpenMeteoClient:
                 self.cache[key] = (time.time(), data)
                 return data
             except httpx.HTTPError as e:
+                logger.error(f"OpenMeteo forecast falló para {key}: {e}")
                 # Si hay cache vencido, devolverlo como fallback
                 if key in self.cache:
                     return self.cache[key][1]
@@ -119,6 +124,7 @@ class OpenMeteoClient:
                 self.cache[key] = (time.time(), data)
                 return data
             except httpx.HTTPError as e:
+                logger.error(f"OpenMeteo histórico falló para {key}: {e}")
                 if key in self.cache:
                     return self.cache[key][1]
                 raise Exception(f"No se pudo obtener datos históricos: {e}")

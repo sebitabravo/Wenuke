@@ -4,7 +4,8 @@ from typing import Literal
 
 Cultivo = Literal["papa", "trigo", "manzano", "general"]
 
-# Umbrales por cultivo: temp_min (°C), lluvia_max_24h (mm), viento_max (km/h), precip_hora_max (mm/h proxy granizo)
+# Umbrales por cultivo: temp_min (°C), lluvia_max_24h (mm), viento_max (km/h),
+# precip_hora_max (mm/h proxy granizo), y umbrales para recomendaciones agronómicas.
 REGLAS: dict[Cultivo, dict] = {
     "papa": {
         "nombre": "Papa",
@@ -13,6 +14,19 @@ REGLAS: dict[Cultivo, dict] = {
         "viento_max": 40.0,
         "helada_severa": -2.0,
         "precip_hora_max": 8.0,
+        # Umbrales para recomendaciones
+        "viento_fumigar_max": 18.0,
+        "lluvia_fumigar_max": 2.0,
+        "temp_fumigar_max": 28.0,
+        "lluvia_manana_fumigar_max": 4.0,
+        "riego_lluvia_suficiente": 10.0,
+        "temp_riego_min": 20.0,
+        "siembra_temp_min": 3.0,
+        "siembra_lluvia_3d_max": 25.0,
+        "siembra_viento_max": 30.0,
+        "cosecha_lluvia_3d_max": 5.0,
+        "cosecha_temp_max": 28.0,
+        "cosecha_viento_max": 28.0,
     },
     "trigo": {
         "nombre": "Trigo",
@@ -21,6 +35,19 @@ REGLAS: dict[Cultivo, dict] = {
         "viento_max": 45.0,
         "helada_severa": -4.0,
         "precip_hora_max": 10.0,
+        # Umbrales para recomendaciones
+        "viento_fumigar_max": 22.0,
+        "lluvia_fumigar_max": 2.0,
+        "temp_fumigar_max": 30.0,
+        "lluvia_manana_fumigar_max": 5.0,
+        "riego_lluvia_suficiente": 12.0,
+        "temp_riego_min": 18.0,
+        "siembra_temp_min": 1.0,
+        "siembra_lluvia_3d_max": 35.0,
+        "siembra_viento_max": 40.0,
+        "cosecha_lluvia_3d_max": 5.0,
+        "cosecha_temp_max": 32.0,
+        "cosecha_viento_max": 32.0,
     },
     "manzano": {
         "nombre": "Manzano",
@@ -29,6 +56,19 @@ REGLAS: dict[Cultivo, dict] = {
         "viento_max": 35.0,
         "helada_severa": -1.5,
         "precip_hora_max": 5.0,
+        # Umbrales para recomendaciones
+        "viento_fumigar_max": 15.0,
+        "lluvia_fumigar_max": 1.0,
+        "temp_fumigar_max": 26.0,
+        "lluvia_manana_fumigar_max": 3.0,
+        "riego_lluvia_suficiente": 8.0,
+        "temp_riego_min": 22.0,
+        "siembra_temp_min": 2.0,
+        "siembra_lluvia_3d_max": 25.0,
+        "siembra_viento_max": 30.0,
+        "cosecha_lluvia_3d_max": 3.0,
+        "cosecha_temp_max": 28.0,
+        "cosecha_viento_max": 25.0,
     },
     "general": {
         "nombre": "General",
@@ -37,6 +77,19 @@ REGLAS: dict[Cultivo, dict] = {
         "viento_max": 40.0,
         "helada_severa": -2.0,
         "precip_hora_max": 8.0,
+        # Umbrales para recomendaciones
+        "viento_fumigar_max": 20.0,
+        "lluvia_fumigar_max": 2.0,
+        "temp_fumigar_max": 28.0,
+        "lluvia_manana_fumigar_max": 5.0,
+        "riego_lluvia_suficiente": 10.0,
+        "temp_riego_min": 20.0,
+        "siembra_temp_min": 2.0,
+        "siembra_lluvia_3d_max": 30.0,
+        "siembra_viento_max": 35.0,
+        "cosecha_lluvia_3d_max": 5.0,
+        "cosecha_temp_max": 30.0,
+        "cosecha_viento_max": 30.0,
     },
 }
 
@@ -173,6 +226,7 @@ def generar_recomendaciones(forecast_hourly: list[dict], daily: list[dict], cult
 
     temp_min_hoy = hoy.get("temp_min") or 0
     temp_max_hoy = hoy.get("temp_max") or 20
+    temp_min_manana = manana.get("temp_min") or temp_min_hoy
     lluvia_hoy = hoy.get("precipitacion_total", 0)
     lluvia_manana = manana.get("precipitacion_total", 0)
     viento_hoy = hoy.get("viento_max") or 0
@@ -183,29 +237,43 @@ def generar_recomendaciones(forecast_hourly: list[dict], daily: list[dict], cult
         for p in forecast_hourly[:6]
     )
 
+    # Cargar umbrales del cultivo
+    v_fumigar = reglas["viento_fumigar_max"]
+    l_fumigar = reglas["lluvia_fumigar_max"]
+    t_fumigar = reglas["temp_fumigar_max"]
+    l_manana_fumigar = reglas["lluvia_manana_fumigar_max"]
+    riego_lluvia = reglas["riego_lluvia_suficiente"]
+    t_riego = reglas["temp_riego_min"]
+    siembra_tmin = reglas["siembra_temp_min"]
+    siembra_lluvia = reglas["siembra_lluvia_3d_max"]
+    siembra_viento = reglas["siembra_viento_max"]
+    cosecha_lluvia = reglas["cosecha_lluvia_3d_max"]
+    cosecha_temp = reglas["cosecha_temp_max"]
+    cosecha_viento = reglas["cosecha_viento_max"]
+
     recs = []
 
     # --- Fumigar ---
-    if viento_hoy < 20 and lluvia_hoy < 2 and lluvia_manana < 5 and temp_max_hoy < 28:
+    if viento_hoy < v_fumigar and lluvia_hoy < l_fumigar and lluvia_manana < l_manana_fumigar and temp_max_hoy < t_fumigar:
         recs.append({
             "accion": "fumigar",
             "recomendacion": "Sí",
             "confianza": "alta",
             "detalle": (
                 f"Hoy es buen día para fumigar tu {nombre}. Sin viento fuerte, sin lluvia a la vista, "
-                f"y temperatura bajo 28°C. Hacelo temprano en la mañana."
+                f"y temperatura bajo {t_fumigar:.0f}°C. Hacelo temprano en la mañana."
             ),
         })
-    elif viento_hoy >= 20 or lluvia_hoy >= 2:
+    elif viento_hoy >= v_fumigar or lluvia_hoy >= l_fumigar:
         recs.append({
             "accion": "fumigar",
             "recomendacion": "No",
             "confianza": "alta",
             "detalle": (
                 f"Hoy NO conviene fumigar tu {nombre}. "
-                f"{'Hay viento fuerte.' if viento_hoy >= 20 else ''}"
-                f"{'Hay lluvia prevista.' if lluvia_hoy >= 2 else ''}"
-                f"{'Se espera lluvia mañana.' if lluvia_manana >= 5 else ''}"
+                f"{'Hay viento fuerte.' if viento_hoy >= v_fumigar else ''}"
+                f"{'Hay lluvia prevista.' if lluvia_hoy >= l_fumigar else ''}"
+                f"{'Se espera lluvia mañana.' if lluvia_manana >= l_manana_fumigar else ''}"
             ),
         })
     else:
@@ -220,7 +288,7 @@ def generar_recomendaciones(forecast_hourly: list[dict], daily: list[dict], cult
         })
 
     # --- Regar ---
-    if lluvia_hoy >= 10 or lluvia_proximas_6h >= 5:
+    if lluvia_hoy >= riego_lluvia or lluvia_proximas_6h >= 5:
         recs.append({
             "accion": "regar",
             "recomendacion": "No",
@@ -230,7 +298,7 @@ def generar_recomendaciones(forecast_hourly: list[dict], daily: list[dict], cult
                 f"Aprovechá para revisar drenajes."
             ),
         })
-    elif lluvia_hoy < 2 and lluvia_proximas_6h < 2 and temp_max_hoy > 20:
+    elif lluvia_hoy < 2 and lluvia_proximas_6h < 2 and temp_max_hoy > t_riego:
         recs.append({
             "accion": "regar",
             "recomendacion": "Sí",
@@ -253,17 +321,31 @@ def generar_recomendaciones(forecast_hourly: list[dict], daily: list[dict], cult
 
     # --- Sembrar ---
     lluvia_3d = lluvia_hoy + lluvia_manana + (daily[2].get("precipitacion_total", 0) if len(daily) > 2 else 0)
-    if temp_min_hoy > 2 and lluvia_3d < 30 and viento_hoy < 35:
+
+    # Primero: revisar riesgo de helada mañana (semilla recién sembrada es vulnerable)
+    if temp_min_manana <= reglas["temp_min"]:
+        recs.append({
+            "accion": "sembrar",
+            "recomendacion": "No",
+            "confianza": "alta",
+            "detalle": (
+                f"No siembres {nombre} hoy. Se espera helada mañana con temperatura "
+                f"mínima de {temp_min_manana:.0f}°C. Las semillas y brotes recién sembrados "
+                f"son muy vulnerables a la congelación."
+            ),
+        })
+    elif temp_min_hoy > siembra_tmin and lluvia_3d < siembra_lluvia and viento_hoy < siembra_viento:
         recs.append({
             "accion": "sembrar",
             "recomendacion": "Sí",
             "confianza": "media",
             "detalle": (
-                f"Buen momento para sembrar {nombre}. Suelo con temperatura adecuada (>2°C), "
-                f"sin exceso de lluvia en los próximos 3 días ({lluvia_3d:.0f} mm)."
+                f"Buen momento para sembrar {nombre}. Suelo con temperatura adecuada "
+                f"(>{siembra_tmin:.0f}°C), sin exceso de lluvia en los próximos 3 días "
+                f"({lluvia_3d:.0f} mm)."
             ),
         })
-    elif temp_min_hoy <= 2:
+    elif temp_min_hoy <= siembra_tmin:
         recs.append({
             "accion": "sembrar",
             "recomendacion": "No",
@@ -285,7 +367,7 @@ def generar_recomendaciones(forecast_hourly: list[dict], daily: list[dict], cult
         })
 
     # --- Cosechar ---
-    if lluvia_3d < 5 and temp_max_hoy < 30 and viento_hoy < 30:
+    if lluvia_3d < cosecha_lluvia and temp_max_hoy < cosecha_temp and viento_hoy < cosecha_viento:
         recs.append({
             "accion": "cosechar",
             "recomendacion": "Sí",

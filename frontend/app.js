@@ -1,4 +1,4 @@
-// ─── Wenuke — Lógica del frontend ───────────────────────────────
+// ─── Werken-mapu — Lógica del frontend ───────────────────────────────
 // Asistente climático para pequeños agricultores de La Araucanía
 
 const API = window.API_BASE || 'http://localhost:8000';

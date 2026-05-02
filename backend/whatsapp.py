@@ -1,7 +1,12 @@
 """Cliente WhatsApp Business Cloud API — envío real de alertas."""
 
+import logging
+import re
+
 import httpx
 from config import config
+
+logger = logging.getLogger("wenuke.whatsapp")
 
 
 class WhatsAppClient:
@@ -17,12 +22,15 @@ class WhatsAppClient:
         return bool(self.token and self.phone_number_id)
 
     async def enviar_mensaje(self, numero: str, texto: str) -> dict:
-        """Envía mensaje de texto a un número de WhatsApp. Retorna respuesta de la API."""
+        """Envía mensaje de texto a un número de WhatsApp en formato E.164. Retorna respuesta de la API."""
         if not self.activo:
-            return {"enviado": False, "error": "WhatsApp no configurado (WHATSAAP_TOKEN / WHATSAPP_PHONE_NUMBER_ID)"}
+            return {"enviado": False, "error": "WhatsApp no configurado (WHATSAPP_TOKEN / WHATSAPP_PHONE_NUMBER_ID)"}
 
-        # Normalizar número: sacar +, espacios, y asegurar formato internacional
-        numero_limpio = numero.replace("+", "").replace(" ", "").replace("-", "")
+        # Normalizar a E.164: eliminar espacios, guiones, paréntesis; mantener o prefijar "+"
+        digits = re.sub(r'[\s\-\(\)]', '', numero)
+        if not digits.startswith('+'):
+            digits = '+' + digits
+        numero_limpio = digits
 
         url = f"{self.base_url}/{self.phone_number_id}/messages"
         headers = {
@@ -43,14 +51,16 @@ class WhatsAppClient:
                 r.raise_for_status()
                 return {"enviado": True, "wa_message_id": r.json().get("messages", [{}])[0].get("id", "")}
             except httpx.HTTPError as e:
-                return {"enviado": False, "error": str(e), "detalle": getattr(e, "response", None) and e.response.text[:300]}
+                detalle = getattr(e, "response", None) and e.response.text[:300]
+                logger.error(f"WhatsApp API error enviando a {numero_limpio}: {e} — {detalle}")
+                return {"enviado": False, "error": str(e), "detalle": detalle}
 
     async def enviar_plantilla_alerta(self, numero: str, alertas: list[dict], cultivo: str) -> dict:
         """Envía un resumen de alertas formateado para WhatsApp."""
         if not alertas:
             return {"enviado": False, "error": "Sin alertas para enviar"}
 
-        lineas = [f"🌱 *Wenuke — Alerta para {cultivo}*\n"]
+        lineas = [f"🌱 *Werken-mapu — Alerta para {cultivo}*\n"]
         for a in alertas:
             iconos = {"helada": "❄️", "lluvia_intensa": "🌧️", "viento_fuerte": "💨", "granizo": "🌨️"}
             icono = iconos.get(a["tipo"], "⚠️")

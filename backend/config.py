@@ -8,16 +8,21 @@ from dataclasses import dataclass, field
 class Config:
     groq_api_key: str = field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""))
     groq_model: str = "llama-3.1-70b-versatile"
-    database_path: str = field(default_factory=lambda: os.getenv(
-        "DB_PATH",
-        "/tmp/wenuke.db" if os.getenv("VERCEL") else "wenuke.db"
-    ))
+    # NOTA: En Vercel serverless, /tmp no persiste entre cold starts.
+    # Para producción serverless, migrar a Turso, Neon o Vercel KV.
+    database_path: str = field(default_factory=lambda: os.getenv("DB_PATH", "wenuke.db"))
     openmeteo_base_url: str = "https://api.open-meteo.com/v1"
     forecast_days: int = 7
     cache_ttl_segundos: int = 3600
     # WhatsApp Business Cloud API
     whatsapp_token: str = field(default_factory=lambda: os.getenv("WHATSAPP_TOKEN", ""))
     whatsapp_phone_number_id: str = field(default_factory=lambda: os.getenv("WHATSAPP_PHONE_NUMBER_ID", ""))
+    # Seguridad
+    admin_token: str = field(default_factory=lambda: os.getenv("ADMIN_TOKEN", "wenuke-admin-secret"))
+    cors_origins: str = field(default_factory=lambda: os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:3000,http://localhost:8000,https://frontend-lac-eight-97.vercel.app"
+    ))
     # Coordenadas default: Temuco, La Araucanía
     lat_default: float = -38.7359
     lon_default: float = -72.5904

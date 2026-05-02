@@ -1,0 +1,37 @@
+{
+  "categorias": [
+    {
+      "palabras_clave": ["helada", "hielo", "congelar", "frío", "frio", "escarcha"],
+      "respuesta": "Para proteger tu {cultivo} de las heladas: riega de noche si tienes sistema, cubre los brotes con malla antihelada o plástico, y mantén el suelo húmedo. La tierra mojada retiene más calor que la tierra seca."
+    },
+    {
+      "palabras_clave": ["lluvia", "llover", "llueve", "precipitación", "agua"],
+      "respuesta": "Con lluvia fuerte no conviene fumigar porque el producto se lava. Si ya fumigaste, revisa si pasaron al menos 4 horas antes de la lluvia. Aprovecha de revisar los canales de drenaje de tu parcela."
+    },
+    {
+      "palabras_clave": ["viento", "ventoso", "ráfaga", "ventisca"],
+      "respuesta": "Con viento fuerte no fumigues: el producto se va con el viento y no protege tu cultivo. Revisa que las estructuras de soporte estén firmes. Si tienes trigo, atención al volcado."
+    },
+    {
+      "palabras_clave": ["granizo", "granizada", "granizar", "piedra"],
+      "respuesta": "Con riesgo de granizo protege los cultivos sensibles con malla antigranizo si dispones. No trabajes en la parcela durante la tormenta. Después del evento revisa daños en brotes y frutos."
+    },
+    {
+      "palabras_clave": ["sembrar", "siembra", "plantar", "siembro", "semilla"],
+      "respuesta": "Para decidir si sembrar {cultivo}, fijate en la temperatura del suelo y la lluvia prevista. Lo ideal es sembrar con suelo húmedo pero sin lluvia fuerte en los 3 días siguientes. Revisa el pronóstico en la sección de clima para decidir el mejor día."
+    },
+    {
+      "palabras_clave": ["cosechar", "cosecha", "recolectar"],
+      "respuesta": "Para cosechar tu {cultivo}, busca una ventana de 2-3 días sin lluvia. La cosecha con suelo seco da mejor calidad y evita hongos. Si viene helada, adelanta la cosecha aunque no esté 100% listo."
+    },
+    {
+      "palabras_clave": ["fumigar", "fumigo", "pesticida", "plaga"],
+      "respuesta": "El mejor momento para fumigar es temprano en la mañana, sin viento y sin lluvia prevista en 6 horas. Con temperatures sobre 25°C algunos productos se evaporan y pierden efecto."
+    },
+    {
+      "palabras_clave": ["regar", "riego", "agua riego"],
+      "respuesta": "Revisa el pronóstico antes de regar. Si llueve en las próximas 24 horas, no gastes agua. El mejor momento para regar es al atardecer, así el agua no se evapora con el sol."
+    }
+  ],
+  "default": "Compa, soy Wenuke, tu asistente climático. Puedo ayudarte a decidir cuándo sembrar, fumigar, regar o cosechar tu {cultivo} según el clima. Pregúntame cosas como: ¿llueve mañana?, ¿puedo fumigar hoy?, ¿hay riesgo de helada?"
+}
