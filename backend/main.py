@@ -3,6 +3,7 @@
 import logging
 from contextlib import asynccontextmanager
 from datetime import date, datetime
+from typing import cast
 
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,7 +40,7 @@ from models import (
     ResumenAnual,
 )
 from odepa import odepa_client
-from reglas import evaluar_reglas, generar_recomendaciones
+from reglas import Cultivo, evaluar_reglas, generar_recomendaciones
 from scheduler import alert_scheduler
 from servicio_alertas import ejecutar_chequeo_alertas
 
@@ -122,6 +123,7 @@ async def clima(
             status_code=400,
             detail=f"Cultivo '{cultivo}' no soportado. Usar: {', '.join(CULTIVOS_VALIDOS)}",
         )
+    cultivo = cast(Cultivo, cultivo)
 
     try:
         raw = await clima_client.fetch_forecast(lat, lon)
@@ -160,12 +162,15 @@ async def clima(
 @app.post("/preguntar", response_model=PreguntarResponse)
 async def preguntar(req: PreguntarRequest):
     # Obtener contexto climático para el LLM
+    if req.cultivo not in CULTIVOS_VALIDOS:
+        raise HTTPException(status_code=400, detail=f"Cultivo no soportado: {req.cultivo}")
+    cultivo = cast(Cultivo, req.cultivo)
     resultado = {"alertas": [], "cultivo": req.cultivo}
     resumen = {}
     try:
         raw = await clima_client.fetch_forecast(req.lat, req.lon)
         hourly = clima_client.parse_hourly(raw)
-        resultado = evaluar_reglas(hourly, req.cultivo)
+        resultado = evaluar_reglas(hourly, cultivo)
 
         daily = clima_client.extract_daily(raw)
         hoy = daily[0] if daily else {}
@@ -335,6 +340,7 @@ async def recomendaciones(
 ):
     if cultivo not in CULTIVOS_VALIDOS:
         raise HTTPException(status_code=400, detail=f"Cultivo no soportado: {cultivo}")
+    cultivo = cast(Cultivo, cultivo)
 
     try:
         raw = await clima_client.fetch_forecast(lat, lon)

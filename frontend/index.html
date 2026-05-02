@@ -32,6 +32,10 @@
     .hero-pattern {
       background: linear-gradient(135deg, #075e54 0%, #128c7e 40%, #25d366 100%);
     }
+    .bg-chat {
+      background-color: #efeae2;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4cfc6' fill-opacity='0.3'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
     .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
     .card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.12); }
     .wave-divider {
@@ -74,7 +78,8 @@
     </div>
   </nav>
 
-  <div class="max-w-6xl mx-auto px-4 py-16 md:py-24 flex flex-col md:flex-row items-center gap-10">
+  <div class="max-w-6xl mx-auto px-4 py-16 md:py-24">
+    <div class="flex flex-col lg:flex-row items-center gap-8 lg:gap-10">
     <div class="flex-1 animate-in delay-1">
       <p class="text-green-200 text-sm font-semibold tracking-wider uppercase mb-3">La Araucanía, Chile</p>
       <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
@@ -93,47 +98,164 @@
         </a>
       </div>
     </div>
-    <div class="flex-1 animate-in delay-2 hidden md:flex justify-center">
-      <!-- Phone mockup -->
-      <div class="relative w-72 h-[500px] bg-white rounded-[3rem] shadow-2xl border-4 border-gray-800 overflow-hidden">
-        <div class="bg-wa-dark h-16 flex items-center px-5 gap-2">
-          <span class="text-lg">🌱</span>
-          <span class="text-white font-semibold text-sm">Werken-mapu</span>
+    <div class="flex flex-col sm:flex-row gap-4 lg:gap-5 justify-center animate-in delay-2">
+
+      <!-- Phone 1: Chat Experience -->
+      <div class="relative w-64 h-[500px] bg-white rounded-[2.5rem] shadow-2xl border-[3px] border-gray-800 overflow-hidden flex-shrink-0 mx-auto sm:mx-0 flex flex-col">
+        <!-- Header -->
+        <div class="bg-wa-dark h-11 flex items-center px-3 gap-2 flex-shrink-0">
+          <span class="text-base">🌱</span>
+          <div class="flex-1 min-w-0">
+            <span class="text-white font-semibold text-xs">Werken-mapu</span>
+            <p class="text-[10px] text-green-200 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-300 inline-block"></span>
+              en línea · papa
+            </p>
+          </div>
+          <span class="text-sm opacity-70">📍</span>
         </div>
-        <div class="bg-wa-chatBg h-[400px] p-3 space-y-2 overflow-y-auto">
-          <div class="flex gap-2">
-            <span class="w-7 h-7 bg-wa-medium rounded-full flex items-center justify-center text-xs text-white">🌱</span>
-            <div class="bg-white rounded-lg rounded-bl-none px-3 py-2 shadow-sm max-w-[85%] text-xs border border-gray-100">
-              Buenos días, Don Manuel ☀️<br>
-              Hoy no hay riesgo de helada en su sector. Temperatura entre 6°C y 14°C. Buen día para fumigar.
+        <!-- Crop Selector -->
+        <div class="bg-white px-2 py-1.5 border-b border-gray-200 flex items-center gap-1.5 overflow-hidden flex-shrink-0">
+          <span class="text-[10px] text-gray-400 flex-shrink-0">Cultivo:</span>
+          <span class="flex-shrink-0 bg-wa-medium text-white rounded-full px-2.5 py-1 text-[11px] font-medium">🥔 Papa</span>
+          <span class="flex-shrink-0 bg-white text-gray-500 border border-gray-200 rounded-full px-2.5 py-1 text-[11px]">🌾 Trigo</span>
+          <span class="flex-shrink-0 bg-white text-gray-500 border border-gray-200 rounded-full px-2.5 py-1 text-[11px]">🍎 Manzano</span>
+        </div>
+        <!-- Chat Area -->
+        <div class="flex-1 overflow-y-auto px-2 py-2 space-y-2 bg-chat" style="min-height:0">
+          <!-- Bot welcome -->
+          <div class="flex gap-1.5">
+            <span class="flex-shrink-0 w-6 h-6 bg-wa-medium rounded-full flex items-center justify-center text-[10px] shadow-sm">🌱</span>
+            <div class="bg-white rounded-lg rounded-bl-none px-2.5 py-2 max-w-[85%] shadow-sm border border-gray-100">
+              <p class="text-[11px] text-gray-800 leading-relaxed">¡Hola! Soy <span class="font-semibold text-wa-dark">Werken-mapu</span>. Decime qué cultivo tenés y preguntame lo que necesités.</p>
+              <p class="text-[10px] text-gray-400 mt-1">📍 Tocá el mapa para marcar tu parcela</p>
             </div>
           </div>
+          <!-- Alert Card: Helada -->
+          <div class="flex gap-1.5">
+            <span class="flex-shrink-0 w-6 h-6 bg-blue-50 rounded-full flex items-center justify-center text-[10px]">❄️</span>
+            <div class="bg-blue-50 border-l-4 border-l-blue-500 rounded-r-lg px-3 py-2 max-w-[85%] shadow-sm">
+              <div class="flex items-center gap-1.5 mb-1">
+                <span class="text-[10px] font-bold uppercase text-gray-500">Helada</span>
+                <span class="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold leading-tight">URGENTE</span>
+                <span class="text-[10px] text-gray-400">Mañana</span>
+              </div>
+              <p class="text-[11px] text-gray-800 leading-relaxed">🚨 Temperatura bajará a -2°C a las 05:30. Cubra sus papas esta noche. No riegue.</p>
+            </div>
+          </div>
+          <!-- User message -->
           <div class="flex justify-end">
-            <div class="bg-[#d9fdd3] rounded-lg rounded-br-none px-3 py-2 shadow-sm max-w-[85%] text-xs">¿Y mañana?</div>
-          </div>
-          <div class="flex gap-2">
-            <span class="w-7 h-7 bg-wa-medium rounded-full flex items-center justify-center text-xs text-white">🌱</span>
-            <div class="bg-white rounded-lg rounded-bl-none px-3 py-2 shadow-sm max-w-[85%] text-xs border border-gray-100">
-              Mañana hay ALERTA DE HELADA 🚨<br>
-              Temperatura bajará a -1°C a las 04:30. Cubra sus papas esta noche. No riegue.
+            <div class="bg-[#d9fdd3] rounded-lg rounded-br-none px-3 py-2 max-w-[80%] shadow-sm">
+              <p class="text-[11px] text-gray-800">¿Puedo fumigar hoy?</p>
+              <span class="text-[9px] text-gray-400 block text-right mt-0.5">09:42</span>
             </div>
           </div>
-          <div class="flex gap-2">
-            <span class="w-7 h-7 bg-wa-medium rounded-full flex items-center justify-center text-xs text-white">🌱</span>
-            <div class="bg-white rounded-lg rounded-bl-none px-3 py-2 shadow-sm max-w-[85%] text-xs border border-gray-100">
-              🌧️ Viernes: 25mm de lluvia. No fumigue jueves ni viernes. Aproveche miércoles para cosechar.
+          <!-- Bot response -->
+          <div class="flex gap-1.5">
+            <span class="flex-shrink-0 w-6 h-6 bg-wa-medium rounded-full flex items-center justify-center text-[10px] shadow-sm">🌱</span>
+            <div class="bg-white rounded-lg rounded-bl-none px-2.5 py-2 max-w-[85%] shadow-sm border border-gray-100">
+              <p class="text-[11px] text-gray-800 leading-relaxed">Hoy no, Don Manuel. Hay lluvia pronosticada a las 14:00. La fumigación se lavaría. Mejor espere al jueves que estará seco.</p>
+              <p class="text-[10px] text-gray-400 mt-1">09:43</p>
             </div>
           </div>
         </div>
-        <div class="bg-wa-panel h-12 border-t border-gray-200 flex items-center px-3">
-          <div class="flex-1 bg-white rounded-full h-8 border border-gray-200 flex items-center px-3">
-            <span class="text-xs text-gray-400">Escribir...</span>
+        <!-- Quick Questions -->
+        <div class="bg-wa-panel px-2 py-1.5 border-t border-gray-200 overflow-hidden flex-shrink-0">
+          <div class="flex gap-1">
+            <span class="flex-shrink-0 text-[10px] bg-white text-gray-600 rounded-full px-2 py-1 border border-gray-200">💧 ¿Llueve mañana?</span>
+            <span class="flex-shrink-0 text-[10px] bg-white text-gray-600 rounded-full px-2 py-1 border border-gray-200">🧪 ¿Puedo fumigar?</span>
+            <span class="flex-shrink-0 text-[10px] bg-white text-gray-600 rounded-full px-2 py-1 border border-gray-200">❄️ ¿Helada?</span>
+            <span class="flex-shrink-0 text-[10px] bg-white text-gray-600 rounded-full px-2 py-1 border border-gray-200">🌽 ¿Cosechar?</span>
           </div>
-          <span class="ml-2 w-8 h-8 bg-wa-light rounded-full flex items-center justify-center">▶</span>
+        </div>
+        <!-- Input Area -->
+        <div class="bg-wa-panel px-2 py-2 border-t border-gray-200 flex-shrink-0">
+          <div class="flex items-end gap-1.5">
+            <span class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-gray-400 text-sm">☀️</span>
+            <div class="flex-1 bg-white rounded-2xl border border-gray-200 px-3 py-1.5 text-[11px] text-gray-400">Escribí tu consulta...</div>
+            <span class="flex-shrink-0 w-7 h-7 bg-wa-light rounded-full flex items-center justify-center text-white text-xs">▶</span>
+          </div>
         </div>
       </div>
+
+      <!-- Phone 2: Climate Data View -->
+      <div class="relative w-64 h-[500px] bg-white rounded-[2.5rem] shadow-2xl border-[3px] border-gray-800 overflow-hidden flex-shrink-0 mx-auto sm:mx-0 flex flex-col">
+        <!-- Header -->
+        <div class="bg-wa-dark h-11 flex items-center px-3 gap-2 flex-shrink-0">
+          <span class="text-base">🌱</span>
+          <div class="flex-1 min-w-0">
+            <span class="text-white font-semibold text-xs">Werken-mapu</span>
+            <p class="text-[10px] text-green-200 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-300 inline-block"></span>
+              en línea · papa
+            </p>
+          </div>
+          <span class="text-sm opacity-70">📍</span>
+        </div>
+        <!-- Crop Selector -->
+        <div class="bg-white px-2 py-1.5 border-b border-gray-200 flex items-center gap-1.5 overflow-hidden flex-shrink-0">
+          <span class="text-[10px] text-gray-400 flex-shrink-0">Cultivo:</span>
+          <span class="flex-shrink-0 bg-wa-medium text-white rounded-full px-2.5 py-1 text-[11px] font-medium">🥔 Papa</span>
+          <span class="flex-shrink-0 bg-white text-gray-500 border border-gray-200 rounded-full px-2.5 py-1 text-[11px]">🌾 Trigo</span>
+          <span class="flex-shrink-0 bg-white text-gray-500 border border-gray-200 rounded-full px-2.5 py-1 text-[11px]">🍎 Manzano</span>
+        </div>
+        <!-- Chat Area -->
+        <div class="flex-1 overflow-y-auto px-2 py-2 space-y-2 bg-chat" style="min-height:0">
+          <!-- Climate summary -->
+          <div class="flex gap-1.5">
+            <span class="flex-shrink-0 w-6 h-6 bg-wa-medium rounded-full flex items-center justify-center text-[10px] shadow-sm">🌱</span>
+            <div class="bg-white rounded-lg rounded-bl-none px-2.5 py-2 max-w-[85%] shadow-sm border border-gray-100">
+              <p class="text-[11px] font-semibold text-gray-800 mb-1">🌤️ Pronóstico para Papa</p>
+              <p class="text-[11px] text-gray-700 leading-relaxed">
+                📊 4°C – 16°C<br>
+                💧 2.4 mm · 💨 18 km/h
+              </p>
+              <p class="text-[11px] text-gray-700 mt-0.5">📅 Próximos 7 días</p>
+              <p class="text-[10px] text-gray-400 mt-1">09:45</p>
+            </div>
+          </div>
+          <!-- No alerts -->
+          <div class="flex gap-1.5">
+            <span class="flex-shrink-0 w-6 h-6 bg-wa-medium rounded-full flex items-center justify-center text-[10px] shadow-sm">🌱</span>
+            <div class="bg-white rounded-lg rounded-bl-none px-2.5 py-2 max-w-[85%] shadow-sm border border-gray-100">
+              <p class="text-[11px] text-gray-800">✅ Sin alertas para tu cultivo. ¡Todo tranquilo por ahora!</p>
+              <p class="text-[10px] text-gray-400 mt-1">09:45</p>
+            </div>
+          </div>
+          <!-- Alert Card: Lluvia intensa -->
+          <div class="flex gap-1.5">
+            <span class="flex-shrink-0 w-6 h-6 bg-cyan-50 rounded-full flex items-center justify-center text-[10px]">🌧️</span>
+            <div class="bg-cyan-50 border-l-4 border-l-cyan-500 rounded-r-lg px-3 py-2 max-w-[85%] shadow-sm">
+              <div class="flex items-center gap-1.5 mb-1">
+                <span class="text-[10px] font-bold uppercase text-gray-500">Lluvia intensa</span>
+                <span class="bg-amber-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-semibold leading-tight">Precaución</span>
+                <span class="text-[10px] text-gray-400">Viernes</span>
+              </div>
+              <p class="text-[11px] text-gray-800 leading-relaxed">🌧️ 35mm de lluvia el viernes. No fumigue jueves ni viernes. Aproveche miércoles para cosechar.</p>
+            </div>
+          </div>
+        </div>
+        <!-- Quick Questions -->
+        <div class="bg-wa-panel px-2 py-1.5 border-t border-gray-200 overflow-hidden flex-shrink-0">
+          <div class="flex gap-1">
+            <span class="flex-shrink-0 text-[10px] bg-white text-gray-600 rounded-full px-2 py-1 border border-gray-200">💧 ¿Llueve mañana?</span>
+            <span class="flex-shrink-0 text-[10px] bg-white text-gray-600 rounded-full px-2 py-1 border border-gray-200">🧪 ¿Puedo fumigar?</span>
+            <span class="flex-shrink-0 text-[10px] bg-white text-gray-600 rounded-full px-2 py-1 border border-gray-200">❄️ ¿Helada?</span>
+          </div>
+        </div>
+        <!-- Input Area -->
+        <div class="bg-wa-panel px-2 py-2 border-t border-gray-200 flex-shrink-0">
+          <div class="flex items-end gap-1.5">
+            <span class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-gray-400 text-sm">☀️</span>
+            <div class="flex-1 bg-white rounded-2xl border border-gray-200 px-3 py-1.5 text-[11px] text-gray-400">Escribí tu consulta...</div>
+            <span class="flex-shrink-0 w-7 h-7 bg-wa-light rounded-full flex items-center justify-center text-white text-xs">▶</span>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
+</div>
 </header>
 
 <!-- ==================== PROBLEM ==================== -->

@@ -122,7 +122,8 @@ def registrar_usuario(data: dict) -> dict:
             "INSERT INTO parcelas (usuario_id, nombre, lat, lon) VALUES (?, ?, ?, ?)",
             (usuario_id, data.get("nombre_parcela", "Parcela 1"), data["lat"], data["lon"]),
         )
-        parcela_id = cur.lastrowid
+        parcela_id: int = cur.lastrowid  # type: ignore[assignment]
+        assert parcela_id is not None
 
         for cultivo in data.get("cultivos", ["general"]):
             conn.execute(
@@ -239,7 +240,8 @@ def agregar_parcela(usuario_id: int, data: dict) -> int:
             "INSERT INTO parcelas (usuario_id, nombre, lat, lon) VALUES (?, ?, ?, ?)",
             (usuario_id, data["nombre"], data["lat"], data["lon"]),
         )
-        parcela_id = cur.lastrowid
+        parcela_id: int = cur.lastrowid  # type: ignore[assignment]
+        assert parcela_id is not None
 
         for cultivo in data.get("cultivos", ["general"]):
             conn.execute(

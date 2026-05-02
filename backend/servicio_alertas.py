@@ -1,12 +1,13 @@
 """Servicio de alertas — lógica compartida entre API y scheduler."""
 import logging
+from typing import cast
 
 from clima import clima_client
 from db import (
     obtener_usuarios_con_cultivo_async,
     registrar_alerta_async,
 )
-from reglas import evaluar_reglas
+from reglas import Cultivo, evaluar_reglas
 from whatsapp import whatsapp_client
 
 logger = logging.getLogger("wenuke.servicio_alertas")
@@ -19,7 +20,8 @@ async def ejecutar_chequeo_alertas() -> dict:
     usuarios_alertados = set()
     envios_fallidos = 0
 
-    for cultivo in ["papa", "trigo", "manzano"]:
+    for cultivo_str in ["papa", "trigo", "manzano"]:
+        cultivo = cast(Cultivo, cultivo_str)
         usuarios = await obtener_usuarios_con_cultivo_async(cultivo)
         if not usuarios:
             continue
