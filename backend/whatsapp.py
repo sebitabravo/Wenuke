@@ -52,7 +52,8 @@ class WhatsAppClient:
                 r.raise_for_status()
                 return {"enviado": True, "wa_message_id": r.json().get("messages", [{}])[0].get("id", "")}
             except httpx.HTTPError as e:
-                detalle = getattr(e, "response", None) and e.response.text[:300]
+                resp = getattr(e, "response", None)
+                detalle = resp.text[:300] if resp else None
                 logger.error(f"WhatsApp API error enviando a {numero_limpio}: {e} — {detalle}")
                 return {"enviado": False, "error": str(e), "detalle": detalle}
 

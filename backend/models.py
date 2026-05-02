@@ -312,7 +312,7 @@ class ParcelaResponse(BaseModel):
     nombre: str
     lat: float
     lon: float
-    cultivos: list[str]
+    cultivos: list[CHILE_CULTIVOS]
 
 
 class ParcelasListResponse(BaseModel):

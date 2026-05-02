@@ -1,45 +1,202 @@
-"""Capa de persistencia — SQLite con soporte multi-parcela y planes."""
+"""Capa de persistencia — dual backend: Turso (serverless) + aiosqlite (local).
 
-import asyncio
-import functools
+Backend automático:
+- Si TURSO_DATABASE_URL y TURSO_AUTH_TOKEN están definidos → Turso HTTP.
+- Si no → aiosqlite local (usa DB_PATH, default "wenuke.db").
+
+Todas las funciones públicas son async nativas — sin ThreadPoolExecutor.
+"""
+
+from __future__ import annotations
+
 import secrets
-import sqlite3
+from typing import Any
 
 from config import config
 
-# NOTA: SQLite es síncrono. Las consultas breves no bloquean significativamente
-# el event loop de FastAPI. Para producción con alta concurrencia, migrar a
-# aiosqlite o Turso.
-_executor = None
+# ---------------------------------------------------------------------------
+# Import condicional de libsql-experimental (solo necesario en producción)
+# ---------------------------------------------------------------------------
+try:
+    import libsql_experimental as libsql  # type: ignore[import-not-found]
+
+    _HAS_LIBSQL = True
+except ImportError:  # pragma: no cover — solo en dev local sin libsql
+    libsql = None  # type: ignore[assignment]
+    _HAS_LIBSQL = False
+
+# ---------------------------------------------------------------------------
+# Singleton del backend
+# ---------------------------------------------------------------------------
+_use_turso: bool = bool(config.turso_database_url and config.turso_auth_token)
+_db: _TursoBackend | _AiosqliteBackend | None = None
 
 
-def _get_executor():
-    global _executor
-    if _executor is None:
-        import concurrent.futures
-        _executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
-    return _executor
+async def _get_db():
+    """Lazy singleton — resuelve el backend y conecta una sola vez."""
+    global _db
+    if _db is not None:
+        return _db
+
+    if _use_turso:
+        if not _HAS_LIBSQL:
+            raise RuntimeError(
+                "TURSO_DATABASE_URL configurada pero libsql-experimental no está instalado. "
+                "Ejecutá: pip install libsql-experimental"
+            )
+        _db = await _TursoBackend.connect(
+            config.turso_database_url, config.turso_auth_token
+        )
+    else:
+        _db = await _AiosqliteBackend.connect(config.database_path)
+
+    return _db
 
 
-async def _run_async(func, *args, **kwargs):
-    """Ejecuta función síncrona en thread pool para no bloquear event loop."""
-    loop = asyncio.get_running_loop()
-    wrapped = functools.partial(func, *args, **kwargs)
-    return await loop.run_in_executor(_get_executor(), wrapped)
+# ======================================================================
+# Backend: Turso (HTTP → libsql-experimental)
+# ======================================================================
 
 
-def get_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(config.database_path)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+class _TursoBackend:
+    """Cliente Turso sobre HTTP. Cada statement es atómico."""
+
+    def __init__(self, client: Any) -> None:
+        self._client = client
+
+    @classmethod
+    async def connect(cls, url: str, token: str):
+        client = libsql.connect(url, auth_token=token)  # type: ignore[union-attr]
+        return cls(client)
+
+    # -- queries ----------------------------------------------------------
+
+    async def fetchall(self, sql: str, params: tuple = ()) -> list[dict]:
+        """SELECT → lista de dicts."""
+        result = await self._client.execute(sql, params)
+        cols = result.columns
+        return [dict(zip(cols, row)) for row in result.rows]
+
+    async def fetchone(self, sql: str, params: tuple = ()) -> dict | None:
+        """SELECT → un dict o None."""
+        rows = await self.fetchall(sql, params)
+        return rows[0] if rows else None
+
+    async def execute(self, sql: str, params: tuple = ()) -> None:
+        """INSERT / UPDATE / DELETE sin retorno."""
+        await self._client.execute(sql, params)
+
+    async def insert(self, sql: str, params: tuple = ()) -> int:
+        """INSERT → last_insert_rowid."""
+        result = await self._client.execute(sql, params)
+        return result.last_insert_rowid
+
+    async def executescript(self, script: str) -> None:
+        """Ejecuta múltiples statements separados por ; (init_db)."""
+        for stmt in script.split(";"):
+            stmt = stmt.strip()
+            if stmt:
+                await self._client.execute(stmt)
+
+    # -- transacciones ----------------------------------------------------
+
+    async def begin(self) -> None:
+        """No-op en Turso — cada statement es atómico por HTTP."""
+        pass
+
+    async def commit(self) -> None:
+        pass
+
+    async def rollback(self) -> None:
+        pass
+
+    # -- cleanup ----------------------------------------------------------
+
+    async def close(self) -> None:
+        pass  # HTTP client no requiere close explícito
 
 
-def init_db():
+# ======================================================================
+# Backend: aiosqlite (local)
+# ======================================================================
+
+
+class _AiosqliteBackend:
+    """Cliente SQLite local async vía aiosqlite."""
+
+    def __init__(self, conn: Any) -> None:
+        self._conn = conn
+
+    @classmethod
+    async def connect(cls, path: str):
+        import aiosqlite  # type: ignore[import-not-found]
+
+        conn = await aiosqlite.connect(path)
+        conn.row_factory = aiosqlite.Row
+        await conn.execute("PRAGMA journal_mode=WAL")
+        await conn.execute("PRAGMA foreign_keys=ON")
+        return cls(conn)
+
+    # -- queries ----------------------------------------------------------
+
+    async def fetchall(self, sql: str, params: tuple = ()) -> list[dict]:
+        cursor = await self._conn.execute(sql, params)
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    async def fetchone(self, sql: str, params: tuple = ()) -> dict | None:
+        cursor = await self._conn.execute(sql, params)
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
+    async def execute(self, sql: str, params: tuple = ()) -> None:
+        """Ejecuta statement sin commit automático — el caller gestiona la tx."""
+        await self._conn.execute(sql, params)
+
+    async def insert(self, sql: str, params: tuple = ()) -> int:
+        """INSERT → lastrowid. No commitea — el caller debe llamar commit()."""
+        cursor = await self._conn.execute(sql, params)
+        return cursor.lastrowid
+
+    async def executescript(self, script: str) -> None:
+        await self._conn.executescript(script)
+
+    # -- transacciones ----------------------------------------------------
+
+    async def begin(self) -> None:
+        await self._conn.execute("BEGIN")
+
+    async def commit(self) -> None:
+        await self._conn.commit()
+
+    async def rollback(self) -> None:
+        await self._conn.rollback()
+
+    # -- cleanup ----------------------------------------------------------
+
+    async def close(self) -> None:
+        await self._conn.close()
+
+
+# ======================================================================
+# Helpers
+# ======================================================================
+
+
+def _generar_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+# ======================================================================
+# Schema — init_db
+# ======================================================================
+
+
+async def init_db() -> None:
     """Crear tablas si no existen — idempotente. Soporta migración desde schema viejo."""
-    conn = get_db()
-    conn.executescript("""
+    db = await _get_db()
+    await db.executescript(
+        """
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             whatsapp TEXT UNIQUE NOT NULL,
@@ -73,127 +230,119 @@ def init_db():
             enviado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
         );
-    """)
+    """
+    )
 
     # Migración: agregar columnas que puedan faltar de schema viejo
     try:
-        conn.execute("ALTER TABLE usuarios ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'")
-    except sqlite3.OperationalError:
+        await db.execute("ALTER TABLE usuarios ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'")
+    except Exception:  # pragma: no cover — solo en migración
         pass  # Ya existe
 
     try:
-        conn.execute("ALTER TABLE usuarios ADD COLUMN token TEXT")
-    except sqlite3.OperationalError:
+        await db.execute("ALTER TABLE usuarios ADD COLUMN token TEXT")
+    except Exception:  # pragma: no cover
         pass
 
-    # Migrar cultivos que referencian usuario_id → parcela_id si la tabla parcelas es nueva
-    # Si hay datos en cultivos con usuario_id, crear parcelas automáticamente
     try:
-        conn.execute("ALTER TABLE cultivos ADD COLUMN parcela_id INTEGER REFERENCES parcelas(id)")
-    except sqlite3.OperationalError:
+        await db.execute(
+            "ALTER TABLE cultivos ADD COLUMN parcela_id INTEGER REFERENCES parcelas(id)"
+        )
+    except Exception:  # pragma: no cover
         pass
 
-    conn.commit()
-    conn.close()
 
-
-def _generar_token() -> str:
-    return secrets.token_urlsafe(32)
-
-
-# ---------------------------------------------------------------------------
+# ======================================================================
 # Usuarios
-# ---------------------------------------------------------------------------
+# ======================================================================
 
-def registrar_usuario(data: dict) -> dict:
+
+async def registrar_usuario(data: dict) -> dict:
     """Registra usuario, parcela inicial y cultivos. Retorna dict con id y token."""
-    conn = get_db()
+    db = await _get_db()
     token = _generar_token()
-    conn.execute("BEGIN")
+    await db.begin()
     try:
-        cur = conn.execute(
+        usuario_id = await db.insert(
             "INSERT INTO usuarios (whatsapp, nombre, plan, token) VALUES (?, ?, ?, ?)",
             (data["whatsapp"], data["nombre"], data.get("plan", "free"), token),
         )
-        usuario_id = cur.lastrowid
 
-        # Crear parcela inicial
-        cur = conn.execute(
+        parcela_id = await db.insert(
             "INSERT INTO parcelas (usuario_id, nombre, lat, lon) VALUES (?, ?, ?, ?)",
-            (usuario_id, data.get("nombre_parcela", "Parcela 1"), data["lat"], data["lon"]),
+            (
+                usuario_id,
+                data.get("nombre_parcela", "Parcela 1"),
+                data["lat"],
+                data["lon"],
+            ),
         )
-        parcela_id: int = cur.lastrowid  # type: ignore[assignment]
-        assert parcela_id is not None
 
         for cultivo in data.get("cultivos", ["general"]):
-            conn.execute(
+            await db.execute(
                 "INSERT INTO cultivos (parcela_id, tipo) VALUES (?, ?)",
                 (parcela_id, cultivo),
             )
 
-        conn.commit()
+        await db.commit()
         return {"usuario_id": usuario_id, "token": token, "parcela_id": parcela_id}
-    except sqlite3.IntegrityError:
-        conn.rollback()
-        raise ValueError(f"WhatsApp {data['whatsapp']} ya registrado")
     except Exception:
-        conn.rollback()
+        await db.rollback()
+        # Re-lanzar IntegrityError como ValueError para mantener compatibilidad
+        if _es_integrity_error():
+            raise ValueError(f"WhatsApp {data['whatsapp']} ya registrado")
         raise
-    finally:
-        conn.close()
 
 
-def obtener_usuario_por_token(token: str) -> dict | None:
+async def obtener_usuario_por_token(token: str) -> dict | None:
     """Obtiene usuario por token de autenticación."""
-    conn = get_db()
-    row = conn.execute("SELECT * FROM usuarios WHERE token = ?", (token,)).fetchone()
-    conn.close()
-    return dict(row) if row else None
+    db = await _get_db()
+    return await db.fetchone("SELECT * FROM usuarios WHERE token = ?", (token,))
 
 
-def actualizar_plan(usuario_id: int, plan: str) -> dict:
+async def actualizar_plan(usuario_id: int, plan: str) -> dict:
     """Cambia el plan de un usuario. Retorna datos actualizados."""
-    conn = get_db()
-    conn.execute("UPDATE usuarios SET plan = ? WHERE id = ?", (plan, usuario_id))
-    conn.commit()
-    row = conn.execute("SELECT id, nombre, whatsapp, plan FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
-    conn.close()
-    return dict(row) if row else {}
+    db = await _get_db()
+    await db.execute("UPDATE usuarios SET plan = ? WHERE id = ?", (plan, usuario_id))
+    await db.commit()
+    return await db.fetchone(
+        "SELECT id, nombre, whatsapp, plan FROM usuarios WHERE id = ?",
+        (usuario_id,),
+    ) or {}
 
 
-def obtener_todos_los_usuarios() -> list[dict]:
+async def obtener_todos_los_usuarios() -> list[dict]:
     """Obtiene todos los usuarios con sus parcelas y cultivos."""
-    conn = get_db()
-    usuarios = conn.execute("SELECT * FROM usuarios").fetchall()
+    db = await _get_db()
+    usuarios = await db.fetchall("SELECT * FROM usuarios")
     resultado = []
     for u in usuarios:
-        u = dict(u)
-        u["parcelas"] = _obtener_parcelas_usuario(conn, u["id"])
+        u["parcelas"] = await _obtener_parcelas_usuario(db, u["id"])
         resultado.append(u)
-    conn.close()
     return resultado
 
 
-# ---------------------------------------------------------------------------
+# ======================================================================
 # Parcelas
-# ---------------------------------------------------------------------------
+# ======================================================================
 
-def _obtener_parcelas_usuario(conn: sqlite3.Connection, usuario_id: int) -> list[dict]:
-    """Helper interno — obtiene parcelas con cultivos (dos queries, sin N+1)."""
-    parcelas = conn.execute(
+
+async def _obtener_parcelas_usuario(db, usuario_id: int) -> list[dict]:
+    """Helper interno — obtiene parcelas con cultivos (sin N+1)."""
+    parcelas = await db.fetchall(
         "SELECT * FROM parcelas WHERE usuario_id = ?", (usuario_id,)
-    ).fetchall()
+    )
 
     if not parcelas:
         return []
 
-    # Cargar todos los cultivos en una sola query
+    # Cargar todos los cultivos en una sola query (sin N+1)
     parcelas_ids = [p["id"] for p in parcelas]
-    placeholders = ','.join('?' * len(parcelas_ids))
-    cultivos_raw = conn.execute(
+    placeholders = ",".join("?" * len(parcelas_ids))
+    cultivos_raw = await db.fetchall(
         f"SELECT parcela_id, tipo FROM cultivos WHERE parcela_id IN ({placeholders})",
-        parcelas_ids
-    ).fetchall()
+        tuple(parcelas_ids),
+    )
 
     # Indexar cultivos por parcela_id
     cultivos_por_parcela: dict[int, list[str]] = {}
@@ -202,84 +351,83 @@ def _obtener_parcelas_usuario(conn: sqlite3.Connection, usuario_id: int) -> list
 
     resultado = []
     for p in parcelas:
-        p = dict(p)
         p["cultivos"] = cultivos_por_parcela.get(p["id"], [])
         resultado.append(p)
     return resultado
 
 
-def obtener_parcelas(usuario_id: int) -> list[dict]:
+async def obtener_parcelas(usuario_id: int) -> list[dict]:
     """Obtiene todas las parcelas de un usuario con sus cultivos."""
-    conn = get_db()
-    resultado = _obtener_parcelas_usuario(conn, usuario_id)
-    conn.close()
-    return resultado
+    db = await _get_db()
+    return await _obtener_parcelas_usuario(db, usuario_id)
 
 
-def agregar_parcela(usuario_id: int, data: dict) -> int:
+async def agregar_parcela(usuario_id: int, data: dict) -> int:
     """Agrega una parcela nueva. Premium — sin límite. Free — máximo 1."""
-    conn = get_db()
+    db = await _get_db()
 
     # Validar límite plan free
-    usuario = conn.execute("SELECT plan FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+    usuario = await db.fetchone(
+        "SELECT plan FROM usuarios WHERE id = ?", (usuario_id,)
+    )
     if not usuario:
-        conn.close()
         raise ValueError("Usuario no encontrado")
 
     if usuario["plan"] == "free":
-        count = conn.execute(
-            "SELECT COUNT(*) as n FROM parcelas WHERE usuario_id = ?", (usuario_id,)
-        ).fetchone()["n"]
-        if count >= 1:
-            conn.close()
-            raise ValueError("Plan gratuito limitado a 1 parcela. Subí a premium para múltiples parcelas.")
+        row = await db.fetchone(
+            "SELECT COUNT(*) as n FROM parcelas WHERE usuario_id = ?",
+            (usuario_id,),
+        )
+        if row and row["n"] >= 1:
+            raise ValueError(
+                "Plan gratuito limitado a 1 parcela. Subí a premium para múltiples parcelas."
+            )
 
-    conn.execute("BEGIN")
+    await db.begin()
     try:
-        cur = conn.execute(
+        parcela_id = await db.insert(
             "INSERT INTO parcelas (usuario_id, nombre, lat, lon) VALUES (?, ?, ?, ?)",
             (usuario_id, data["nombre"], data["lat"], data["lon"]),
         )
-        parcela_id: int = cur.lastrowid  # type: ignore[assignment]
-        assert parcela_id is not None
 
         for cultivo in data.get("cultivos", ["general"]):
-            conn.execute(
+            await db.execute(
                 "INSERT INTO cultivos (parcela_id, tipo) VALUES (?, ?)",
                 (parcela_id, cultivo),
             )
 
-        conn.commit()
+        await db.commit()
     except Exception:
-        conn.rollback()
+        await db.rollback()
         raise
-    finally:
-        conn.close()
 
     return parcela_id
 
 
-def eliminar_parcela(parcela_id: int, usuario_id: int) -> bool:
+async def eliminar_parcela(parcela_id: int, usuario_id: int) -> bool:
     """Elimina una parcela. Retorna True si se eliminó."""
-    conn = get_db()
-    cur = conn.execute(
+    db = await _get_db()
+    await db.execute(
         "DELETE FROM parcelas WHERE id = ? AND usuario_id = ?",
         (parcela_id, usuario_id),
     )
-    conn.commit()
-    eliminado = cur.rowcount > 0
-    conn.close()
-    return eliminado
+    await db.commit()
+    # Verificar si se eliminó algo — consultar si aún existe
+    row = await db.fetchone(
+        "SELECT id FROM parcelas WHERE id = ?", (parcela_id,)
+    )
+    return row is None
 
 
-# ---------------------------------------------------------------------------
+# ======================================================================
 # Consultas para alertas (por parcela)
-# ---------------------------------------------------------------------------
+# ======================================================================
 
-def obtener_usuarios_con_cultivo(tipo: str) -> list[dict]:
+
+async def obtener_usuarios_con_cultivo(tipo: str) -> list[dict]:
     """Obtiene todos los usuarios con parcelas que tengan un cultivo específico."""
-    conn = get_db()
-    rows = conn.execute(
+    db = await _get_db()
+    return await db.fetchall(
         """
         SELECT DISTINCT u.id, u.nombre, u.whatsapp, p.lat, p.lon, p.id as parcela_id
         FROM usuarios u
@@ -288,57 +436,35 @@ def obtener_usuarios_con_cultivo(tipo: str) -> list[dict]:
         WHERE c.tipo = ?
         """,
         (tipo,),
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    )
 
 
-# ---------------------------------------------------------------------------
+# ======================================================================
 # Alertas
-# ---------------------------------------------------------------------------
+# ======================================================================
 
-def registrar_alerta(usuario_id: int, tipo: str, mensaje: str):
-    """Registra alerta enviada para auditoría."""
-    conn = get_db()
-    conn.execute(
+
+async def registrar_alerta(usuario_id: int, tipo: str, mensaje: str) -> None:
+    """Registra alerta enviada para auditoría — fire and forget."""
+    db = await _get_db()
+    await db.execute(
         "INSERT INTO alertas_enviadas (usuario_id, tipo, mensaje) VALUES (?, ?, ?)",
         (usuario_id, tipo, mensaje),
     )
-    conn.commit()
-    conn.close()
+    await db.commit()
 
 
-# ---------------------------------------------------------------------------
-# Wrappers asíncronos — usar en endpoints async de FastAPI
-# ---------------------------------------------------------------------------
-
-async def registrar_usuario_async(data: dict) -> dict:
-    return await _run_async(registrar_usuario, data)
+# ======================================================================
+# Helpers privados
+# ======================================================================
 
 
-async def obtener_usuario_por_token_async(token: str) -> dict | None:
-    return await _run_async(obtener_usuario_por_token, token)
+def _es_integrity_error() -> bool:
+    """Determina si la excepción activa es una violación de unicidad."""
+    import sys
 
-
-async def obtener_parcelas_async(usuario_id: int) -> list[dict]:
-    return await _run_async(obtener_parcelas, usuario_id)
-
-
-async def agregar_parcela_async(usuario_id: int, data: dict) -> int:
-    return await _run_async(agregar_parcela, usuario_id, data)
-
-
-async def eliminar_parcela_async(parcela_id: int, usuario_id: int) -> bool:
-    return await _run_async(eliminar_parcela, parcela_id, usuario_id)
-
-
-async def actualizar_plan_async(usuario_id: int, plan: str) -> dict:
-    return await _run_async(actualizar_plan, usuario_id, plan)
-
-
-async def obtener_usuarios_con_cultivo_async(tipo: str) -> list[dict]:
-    return await _run_async(obtener_usuarios_con_cultivo, tipo)
-
-
-async def registrar_alerta_async(usuario_id: int, tipo: str, mensaje: str):
-    return await _run_async(registrar_alerta, usuario_id, tipo, mensaje)
+    exc = sys.exc_info()[1]
+    if exc is None:
+        return False
+    msg = str(exc).lower()
+    return "unique" in msg or "integrity" in msg or "unicidad" in msg

@@ -4,8 +4,8 @@ from typing import cast
 
 from clima import clima_client
 from db import (
-    obtener_usuarios_con_cultivo_async,
-    registrar_alerta_async,
+    obtener_usuarios_con_cultivo,
+    registrar_alerta,
 )
 from reglas import Cultivo, evaluar_reglas
 from whatsapp import whatsapp_client
@@ -22,7 +22,7 @@ async def ejecutar_chequeo_alertas() -> dict:
 
     for cultivo_str in ["papa", "trigo", "manzano"]:
         cultivo = cast(Cultivo, cultivo_str)
-        usuarios = await obtener_usuarios_con_cultivo_async(cultivo)
+        usuarios = await obtener_usuarios_con_cultivo(cultivo)
         if not usuarios:
             continue
 
@@ -48,7 +48,7 @@ async def ejecutar_chequeo_alertas() -> dict:
                 continue
 
             for alerta in alertas_usuario:
-                await registrar_alerta_async(u["id"], alerta["tipo"], alerta["mensaje"])
+                await registrar_alerta(u["id"], alerta["tipo"], alerta["mensaje"])
 
             if whatsapp_client.activo:
                 envio = await whatsapp_client.enviar_plantilla_alerta(

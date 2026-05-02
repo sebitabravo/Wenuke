@@ -11,12 +11,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from clima import clima_client
 from config import config
 from db import (
-    actualizar_plan_async,
-    agregar_parcela_async,
-    eliminar_parcela_async,
+    actualizar_plan,
+    agregar_parcela,
+    eliminar_parcela,
     init_db,
-    obtener_parcelas_async,
-    obtener_usuario_por_token_async,
+    obtener_parcelas,
+    obtener_usuario_por_token,
     registrar_usuario,
 )
 from llm import llm_client
@@ -65,7 +65,7 @@ def _extraer_token(authorization: str) -> str:
 async def _auth_usuario(authorization: str) -> dict:
     """Autentica usuario via header Authorization: Bearer <token>. Retorna dict usuario."""
     token = _extraer_token(authorization)
-    usuario = await obtener_usuario_por_token_async(token)
+    usuario = await obtener_usuario_por_token(token)
     if not usuario:
         raise HTTPException(status_code=401, detail="Token inválido")
     return usuario
@@ -73,7 +73,7 @@ async def _auth_usuario(authorization: str) -> dict:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    await init_db()
     alert_scheduler.iniciar()
     yield
     alert_scheduler.detener()
@@ -198,7 +198,7 @@ async def preguntar(req: PreguntarRequest):
 @app.post("/registrar", response_model=RegistrarResponse)
 async def registrar(req: RegistrarRequest):
     try:
-        resultado = registrar_usuario({
+        resultado = await registrar_usuario({
             "whatsapp": req.whatsapp,
             "nombre": req.nombre,
             "lat": req.lat,
@@ -230,7 +230,7 @@ async def registrar(req: RegistrarRequest):
 async def listar_parcelas(authorization: str = Header(..., description="Bearer <token>")):
     usuario = await _auth_usuario(authorization)
 
-    parcelas = await obtener_parcelas_async(usuario["id"])
+    parcelas = await obtener_parcelas(usuario["id"])
     max_parcelas = 1 if usuario["plan"] == "free" else 10
 
     return ParcelasListResponse(
@@ -249,7 +249,7 @@ async def crear_parcela(
     usuario = await _auth_usuario(authorization)
 
     try:
-        parcela_id = await agregar_parcela_async(usuario["id"], req.model_dump())
+        parcela_id = await agregar_parcela(usuario["id"], req.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
 
@@ -263,7 +263,7 @@ async def borrar_parcela(
 ):
     usuario = await _auth_usuario(authorization)
 
-    eliminado = await eliminar_parcela_async(parcela_id, usuario["id"])
+    eliminado = await eliminar_parcela(parcela_id, usuario["id"])
     if not eliminado:
         raise HTTPException(status_code=404, detail="Parcela no encontrada o no pertenece al usuario")
 
@@ -277,7 +277,7 @@ async def borrar_parcela(
 async def ver_plan(authorization: str = Header(..., description="Bearer <token>")):
     usuario = await _auth_usuario(authorization)
 
-    parcelas = await obtener_parcelas_async(usuario["id"])
+    parcelas = await obtener_parcelas(usuario["id"])
     max_parcelas = 1 if usuario["plan"] == "free" else 10
 
     return PlanResponse(
@@ -296,8 +296,8 @@ async def cambiar_plan(
 ):
     usuario = await _auth_usuario(authorization)
 
-    actualizado = await actualizar_plan_async(usuario["id"], req.plan)
-    parcelas = await obtener_parcelas_async(usuario["id"])
+    actualizado = await actualizar_plan(usuario["id"], req.plan)
+    parcelas = await obtener_parcelas(usuario["id"])
     max_parcelas = 1 if req.plan == "free" else 10
 
     return PlanResponse(

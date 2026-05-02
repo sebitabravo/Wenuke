@@ -8,9 +8,13 @@ from dataclasses import dataclass, field
 class Config:
     groq_api_key: str = field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""))
     groq_model: str = "llama-3.1-70b-versatile"
-    # NOTA: En Vercel serverless, /tmp no persiste entre cold starts.
-    # Para producción serverless, migrar a Turso, Neon o Vercel KV.
-    database_path: str = field(default_factory=lambda: os.getenv("DB_PATH", "wenuke.db"))
+    database_path: str = field(default_factory=lambda: os.getenv(
+        "DB_PATH",
+        "/tmp/wenuke.db" if os.getenv("VERCEL") else "wenuke.db",
+    ))
+    # Turso — base de datos serverless compatible con SQLite (HTTP)
+    turso_database_url: str = field(default_factory=lambda: os.getenv("TURSO_DATABASE_URL", ""))
+    turso_auth_token: str = field(default_factory=lambda: os.getenv("TURSO_AUTH_TOKEN", ""))
     openmeteo_base_url: str = "https://api.open-meteo.com/v1"
     forecast_days: int = 7
     cache_ttl_segundos: int = 3600
