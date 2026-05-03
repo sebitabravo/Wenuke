@@ -19,18 +19,66 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ─── Mapa ────────────────────────────────────────────────────────
-let map, marker;
+let map, marker, _mapFocusedEl = null;
+
+function _mapFocusables() {
+  const el = document.getElementById('mapa-overlay');
+  if (!el || el.classList.contains('hidden')) return [];
+  return Array.from(el.querySelectorAll(
+    'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  ));
+}
+
+function _mapTrapKey(e) {
+  if (e.key === 'Escape') { toggleMapa(); return; }
+  if (e.key !== 'Tab') return;
+  const f = _mapFocusables();
+  if (!f.length) return;
+  const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+function _mapArrowKey(e) {
+  if (!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) return;
+  // Solo interceptar flechas si el foco está dentro del overlay (no en inputs)
+  if (e.target.tagName === 'INPUT') return;
+  e.preventDefault();
+  const step = e.shiftKey ? 0.01 : 0.001;
+  let lat = state.lat, lon = state.lon;
+  if (e.key === 'ArrowUp') lat += step;
+  if (e.key === 'ArrowDown') lat -= step;
+  if (e.key === 'ArrowRight') lon += step;
+  if (e.key === 'ArrowLeft') lon -= step;
+  // Clamp
+  lat = Math.min(90, Math.max(-90, lat));
+  lon = Math.min(180, Math.max(-180, lon));
+  setCoords(lat, lon);
+  map.setView([state.lat, state.lon], map.getZoom());
+}
 
 function initMap() {
-  map = L.map('mapa', { attributionControl: false }).setView([state.lat, state.lon], 13);
+  map = L.map('mapa', { attributionControl: false, keyboard: false }).setView([state.lat, state.lon], 13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
-  marker = L.marker([state.lat, state.lon], { draggable: true }).addTo(map);
+  marker = L.marker([state.lat, state.lon], { draggable: true, keyboard: false }).addTo(map);
 
   map.on('click', e => setCoords(e.latlng.lat, e.latlng.lng));
   marker.on('dragend', () => {
     const p = marker.getLatLng();
     setCoords(p.lat, p.lng);
   });
+
+  // Keyboard: +/- zoom, arrow keys nudge marker
+  const mapEl = document.getElementById('mapa');
+  mapEl.setAttribute('tabindex', '0');
+  mapEl.setAttribute('role', 'application');
+  mapEl.setAttribute('aria-label', 'Mapa de ubicación. Usá las flechas para mover el marcador, + y - para zoom.');
+  mapEl.addEventListener('keydown', (e) => {
+    if (e.key === '+' || e.key === '=') { map.zoomIn(); return; }
+    if (e.key === '-') { map.zoomOut(); return; }
+    _mapArrowKey(e);
+  });
+
   updateCoordInputs();
 }
 
@@ -48,13 +96,32 @@ function updateCoordInputs() {
   le('lon-input').value = state.lon;
   le('lat-display').textContent = state.lat.toFixed(2);
   le('lon-display').textContent = state.lon.toFixed(2);
+  // Anunciar cambio a screen readers
+  const live = document.getElementById('header-status');
+  if (live) {
+    live.textContent = live.textContent; // dispara aria-live re-read
+  }
 }
 
 function toggleMapa() {
   const overlay = document.getElementById('mapa-overlay');
+  const abriendo = overlay.classList.contains('hidden');
   overlay.classList.toggle('hidden');
-  if (!overlay.classList.contains('hidden')) {
-    setTimeout(() => map.invalidateSize(), 150);
+
+  if (abriendo) {
+    _mapFocusedEl = document.activeElement;
+    overlay.addEventListener('keydown', _mapTrapKey);
+    setTimeout(() => {
+      map.invalidateSize();
+      const first = _mapFocusables()[0];
+      if (first) first.focus();
+    }, 150);
+  } else {
+    overlay.removeEventListener('keydown', _mapTrapKey);
+    if (_mapFocusedEl && typeof _mapFocusedEl.focus === 'function') {
+      _mapFocusedEl.focus();
+    }
+    _mapFocusedEl = null;
   }
 }
 
@@ -270,7 +337,7 @@ function addAlertCard(alerta) {
   const badgeEl = _el('span', 'text-white text-[10px] px-2 py-0.5 rounded-full font-semibold ' + bc);
   _safeText(badgeEl, badgeText);
 
-  const dateEl = _el('span', 'text-[10px] text-gray-400');
+  const dateEl = _el('span', 'text-[10px] text-gray-500');
   _safeText(dateEl, alerta.dia || '');
 
   header.append(labelEl, badgeEl, dateEl);

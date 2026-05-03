@@ -617,7 +617,7 @@
         <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-wa-light text-white text-sm font-bold px-4 py-1.5 rounded-full">Plan Premium</div>
         <div class="text-center mt-4 mb-6">
           <p class="text-5xl font-extrabold text-gray-900">$3.000</p>
-          <p class="text-gray-400 text-sm mt-1">CLP / mes</p>
+          <p class="text-gray-500 text-sm mt-1">CLP / mes</p>
         </div>
         <ul class="space-y-3 mb-8">
           <li class="flex items-center gap-2 text-sm">
@@ -894,15 +894,50 @@ const API = window.location.hostname === 'localhost'
       ? window.location.origin.replace('frontend', 'backend')
       : 'https://backend-beryl-nu-18.vercel.app');
 
+function _clearFieldErrors(form) {
+  form.querySelectorAll('[aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
+  form.querySelectorAll('.field-error').forEach(el => el.remove());
+}
+
+function _showFieldError(input, mensaje) {
+  input.setAttribute('aria-invalid', 'true');
+  const err = document.createElement('span');
+  err.className = 'field-error block text-xs text-red-500 mt-1';
+  err.textContent = mensaje;
+  err.setAttribute('role', 'alert');
+  input.closest('div')?.appendChild(err);
+}
+
 document.getElementById('registro-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const form = e.target;
+  _clearFieldErrors(form);
+
+  // Validación client-side de campos requeridos
+  const required = [
+    { name: 'nombre', el: form.querySelector('#input-nombre'), label: 'Nombre completo' },
+    { name: 'whatsapp', el: form.querySelector('#input-whatsapp'), label: 'WhatsApp' },
+    { name: 'lat', el: form.querySelector('#input-lat'), label: 'Latitud' },
+    { name: 'lon', el: form.querySelector('#input-lon'), label: 'Longitud' },
+  ];
+  let firstInvalid = null;
+  for (const { name, el, label } of required) {
+    if (!el || !el.value.trim()) {
+      _showFieldError(el, `Ingresá tu ${label.toLowerCase()}.`);
+      if (!firstInvalid) firstInvalid = el;
+    }
+  }
+  if (firstInvalid) {
+    firstInvalid.focus();
+    return;
+  }
+
   const msg = document.getElementById('form-mensaje');
   msg.className = 'text-center text-sm mt-3';
   msg.classList.remove('hidden');
   msg.textContent = 'Enviando...';
   msg.className += ' text-gray-500';
 
-  const form = e.target;
   const cultivos = [...form.querySelectorAll('input[name="cultivos"]:checked')].map(c => c.value);
   const plan = form.querySelector('input[name="plan"]:checked').value;
 
@@ -930,6 +965,13 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
     } else {
       msg.textContent = '❌ ' + (data.detail || 'Error al registrar');
       msg.className = 'text-center text-sm mt-3 text-red-500';
+      // Si el servidor devuelve errores por campo (HTTP 422)
+      if (r.status === 422 && data.errors) {
+        for (const [field, error] of Object.entries(data.errors)) {
+          const input = form.querySelector(`[name="${field}"]`);
+          if (input) _showFieldError(input, error);
+        }
+      }
     }
   } catch {
     msg.textContent = '❌ No se pudo conectar con el servidor. Intentá de nuevo.';
