@@ -1,18 +1,36 @@
-# Werken-mapu — Asistente climático agrícola por WhatsApp para pequeños agricultores
+# Werken-mapu — Asistente climatico agricola por WhatsApp
 
-Werken-mapu ("mensajero de la tierra" en mapudungún) es un asistente climático que entrega alertas anticipadas de heladas, lluvias, viento y granizo directamente por WhatsApp. Usa datos hiperlocales (coordenadas GPS de la parcela), no pronósticos genéricos de ciudad. Sin apps, sin sensores, sin APIs pagas. Costo operativo $0–10 USD/mes. Plan libre gratuito, plan premium $3.000 CLP/mes (~$3 USD), paquete B2B para cooperativas y PRODESAL a $1.500 CLP/agricultor/mes.
+> Alertas de helada, lluvia y granizo 72h antes. Recomendaciones por cultivo. IA conversacional 24/7.
+> Sin apps, sin sensores. Plan libre gratuito, premium $3.000 CLP/mes.
+
+## URLs
+- Landing: https://frontend-lac-eight-97.vercel.app
+- Chat demo: https://frontend-lac-eight-97.vercel.app/app
+- API docs (Swagger): https://backend-beryl-nu-18.vercel.app/docs
+- OpenAPI spec: https://backend-beryl-nu-18.vercel.app/openapi.json
+- API plugin: https://backend-beryl-nu-18.vercel.app/ai-plugin.json
+- Repo: https://github.com/sebitabravo/Wenuke
+
+## API Endpoints (no auth para consulta)
+- `GET /clima?lat=&lon=&cultivo=` — Pronostico + alertas por cultivo
+- `POST /preguntar` — Asistente IA conversacional
+- `GET /recomendaciones?lat=&lon=&cultivo=` — Fumigar, regar, sembrar, cosechar
+- `GET /historico?lat=&lon=&anos=` — Datos historicos 1-10 anos
+- `GET /precios?producto=` — Precios ODEPA (papa, trigo, manzano)
+- `POST /registrar` — Alta de agricultor (retorna token)
+- `GET /parcelas` — Listar parcelas (auth)
+- `POST /parcelas` — Crear parcela (auth)
+- `GET /plan` — Ver plan (auth)
 
 ## Docs
-- [README](https://github.com/sebitabravo/Wenuke): Descripción completa del proyecto, stack, licencia MIT
-- [Documentación de API](https://backend-beryl-nu-18.vercel.app/docs): OpenAPI/Swagger — todos los endpoints, modelos, autenticación
-- [Arquitectura](https://github.com/sebitabravo/Wenuke/blob/main/docs/ARCHITECTURE.md): Diagrama de arquitectura, decisiones técnicas, estructura del proyecto
-- [API reference](https://github.com/sebitabravo/Wenuke/blob/main/docs/API.md): Endpoints detallados, modelo de datos, planes, autenticación
-- [Setup local](https://github.com/sebitabravo/Wenuke/blob/main/docs/SETUP.md): Cómo levantar el proyecto, variables de entorno, Docker
-- [Guía de contribución](https://github.com/sebitabravo/Wenuke/blob/main/CONTRIBUTING.md): Convenciones de commit, estilo de código, reporte de bugs
+- [README](https://github.com/sebitabravo/Wenuke): Stack, licencia MIT, badges
+- [Arquitectura](https://github.com/sebitabravo/Wenuke/blob/main/docs/ARCHITECTURE.md): Decisiones tecnicas
+- [API reference](https://github.com/sebitabravo/Wenuke/blob/main/docs/API.md): Endpoints detallados
+- [Setup local](https://github.com/sebitabravo/Wenuke/blob/main/docs/SETUP.md): Docker, env vars
+- [Design system](https://github.com/sebitabravo/Wenuke/blob/main/DESIGN.md): WhatsApp-inspired palette
+- [Guia de contribucion](https://github.com/sebitabravo/Wenuke/blob/main/CONTRIBUTING.md)
 
-## Optional
-- [Landing page](https://frontend-lac-eight-97.vercel.app): Sitio público con demo visual del producto
-- [Chat demo](https://frontend-lac-eight-97.vercel.app/app): Demo interactiva del asistente IA — probar sin registrarse
-- [Design system](https://github.com/sebitabravo/Wenuke/blob/main/DESIGN.md): Paleta de colores WhatsApp-inspired, componentes, estándar visual
-- [Pitch deck](https://github.com/sebitabravo/Wenuke/blob/main/docs/pitch.pdf): Presentación de la hackathon
-- [Código fuente](https://github.com/sebitabravo/Wenuke): Repositorio completo — backend FastAPI, frontend vanilla, GitHub Actions CI/CD
+## AI Agents
+- [Tool definitions](https://github.com/sebitabravo/Wenuke/blob/main/openapi.yaml): OpenAPI 3.1 completo
+- [ChatGPT Plugin](https://github.com/sebitabravo/Wenuke/blob/main/ai-plugin.json): Manifest para GPT
+- [Playwright tests](https://github.com/sebitabravo/Wenuke/blob/main/backend/tests/e2e/agent-friendly-smoke.spec.js): Smoke tests

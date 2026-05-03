@@ -1,0 +1,46 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# AI Crawlers — todos bienvenidos
+User-agent: GPTBot
+Disallow:
+
+User-agent: Claude-Web
+Disallow:
+
+User-agent: ClaudeBot
+Disallow:
+
+User-agent: anthropic-ai
+Disallow:
+
+User-agent: PerplexityBot
+Disallow:
+
+User-agent: Google-Extended
+Disallow:
+
+User-agent: Omgili
+Disallow:
+
+User-agent: Omgilibot
+Disallow:
+
+User-agent: CCBot
+Disallow:
+
+User-agent: ChatGPT-User
+Disallow:
+
+User-agent: cohere-ai
+Disallow:
+
+User-agent: Diffbot
+Disallow:
+
+User-agent: FacebookBot
+Disallow:
+
+# Sitemaps para crawlers
+Sitemap: https://frontend-lac-eight-97.vercel.app/sitemap.xml
