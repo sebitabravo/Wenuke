@@ -22,8 +22,20 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Python — cachés
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
 # Vercel
 .vercel
 
 # Node
 node_modules/
+
+# Testing / Playwright
+.playwright-mcp/
+*.png
+
+# Logs
+*.log

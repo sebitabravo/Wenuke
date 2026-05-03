@@ -482,7 +482,7 @@ class EnviarAlertasResponse(BaseModel):
     )
     detalle: list[dict] = Field(
         default_factory=list,
-        description="Lista de envíos con usuario_id, whatsapp, cultivo y alertas enviadas",
+        description="Métricas agregadas por usuario: usuario_id, cultivo, cantidad_alertas, tipos (sin PII)",
     )
     envios_fallidos: int = Field(
         default=0,
@@ -500,11 +500,9 @@ class EnviarAlertasResponse(BaseModel):
             "detalle": [
                 {
                     "usuario_id": 42,
-                    "whatsapp": "+56912345678",
                     "cultivo": "papa",
-                    "alertas": [
-                        {"tipo": "helada", "severidad": "alta", "dia": "2026-05-03"},
-                    ],
+                    "cantidad_alertas": 1,
+                    "tipos": ["helada"],
                 },
             ],
             "envios_fallidos": 0,

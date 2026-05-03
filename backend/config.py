@@ -23,6 +23,11 @@ class Config:
     whatsapp_phone_number_id: str = field(default_factory=lambda: os.getenv("WHATSAPP_PHONE_NUMBER_ID", ""))
     # Seguridad
     admin_token: str = field(default_factory=lambda: os.getenv("ADMIN_TOKEN", ""))
+    token_expiry_days: int = 90
+    # No se permite admin_token vacío en producción — fuerza fallar el endpoint
+    @property
+    def admin_token_activo(self) -> bool:
+        return bool(self.admin_token and len(self.admin_token) >= 16)
     cors_origins: str = field(default_factory=lambda: os.getenv(
         "CORS_ORIGINS",
         "http://localhost:3000,http://localhost:8000,https://frontend-lac-eight-97.vercel.app"

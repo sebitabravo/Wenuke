@@ -60,13 +60,9 @@ async def ejecutar_chequeo_alertas() -> dict:
             usuarios_alertados.add(u["id"])
             detalle.append({
                 "usuario_id": u["id"],
-                "whatsapp": u["whatsapp"],
-                "nombre": u["nombre"],
                 "cultivo": cultivo,
-                "alertas": [
-                    {"tipo": a["tipo"], "severidad": a["severidad"], "dia": a.get("dia", "")}
-                    for a in alertas_usuario
-                ],
+                "cantidad_alertas": len(alertas_usuario),
+                "tipos": list({a["tipo"] for a in alertas_usuario}),
             })
 
     return {

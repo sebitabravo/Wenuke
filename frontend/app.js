@@ -166,43 +166,105 @@ function enviarEjemplo(texto) {
 }
 
 // ─── Renderizado ─────────────────────────────────────────────────
+// User text only via textContent — no innerHTML para datos de usuario (XSS)
+
+function _el(tag, cls, attrs) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (attrs) Object.entries(attrs).forEach(([k, v]) => { if (v != null) e[k] = v; });
+  return e;
+}
+
+function _safeText(el, text) {
+  // Usa textContent para datos de usuario — inmune a XSS
+  el.textContent = text;
+}
+
+function _safeHTML(el, html) {
+  // Solo para HTML estructural sin datos de usuario (íconos, badges)
+  el.insertAdjacentHTML('beforeend', html);
+}
+
 function addMsg(type, text) {
   const chat = document.getElementById('chat-mensajes');
-  const div = document.createElement('div');
-  div.className = 'msg-enter flex mb-2 ' + (type === 'user' ? 'justify-end' : 'gap-2');
+  const row = _el('div', 'msg-enter flex mb-2 ' + (type === 'user' ? 'justify-end' : 'gap-2'));
 
   if (type === 'user') {
-    div.innerHTML = `<div class="bg-[#d9fdd3] rounded-lg rounded-br-none px-4 py-2.5 max-w-[80%] shadow-sm"><p class="text-sm text-gray-800 whitespace-pre-wrap">${esc(text)}</p><span class="text-[10px] text-gray-400 float-right ml-4 mt-1">${now()}</span></div>`;
+    const bubble = _el('div', 'bg-[#d9fdd3] rounded-lg rounded-br-none px-4 py-2.5 max-w-[80%] shadow-sm');
+    const p = _el('p', 'text-sm text-gray-800 whitespace-pre-wrap');
+    _safeText(p, text);
+    const ts = _el('span', 'text-[10px] text-gray-400 float-right ml-4 mt-1');
+    _safeText(ts, now());
+    bubble.append(p, ts);
+    row.append(bubble);
   } else {
-    div.innerHTML = `<div class="flex-shrink-0 w-7 h-7 bg-wa-medium rounded-full flex items-center justify-center text-xs shadow-sm">🌱</div><div class="bg-white rounded-lg rounded-bl-none px-4 py-2.5 max-w-[80%] shadow-sm border border-gray-100"><p class="text-sm text-gray-800 whitespace-pre-wrap">${fmt(text)}</p><span class="text-[10px] text-gray-400 block mt-1">${now()}</span></div>`;
+    const avatar = _el('div', 'flex-shrink-0 w-7 h-7 bg-wa-medium rounded-full flex items-center justify-center text-xs shadow-sm');
+    _safeText(avatar, '🌱');
+    const bubble = _el('div', 'bg-white rounded-lg rounded-bl-none px-4 py-2.5 max-w-[80%] shadow-sm border border-gray-100');
+    const p = _el('p', 'text-sm text-gray-800 whitespace-pre-wrap');
+    // fmt() aplica esc() primero, luego parsea **bold** → HTML seguro
+    _safeHTML(p, fmt(text));
+    const ts = _el('span', 'text-[10px] text-gray-400 block mt-1');
+    _safeText(ts, now());
+    bubble.append(p, ts);
+    row.append(avatar, bubble);
   }
 
-  chat.appendChild(div);
+  chat.appendChild(row);
   scrollDown();
 }
 
 function addAlertCard(alerta) {
   const chat = document.getElementById('chat-mensajes');
-  const div = document.createElement('div');
-  div.className = 'msg-enter flex gap-2 mb-2';
+  const row = _el('div', 'msg-enter flex gap-2 mb-2');
 
-  const colors = {
+  const COLORS = {
     helada: { border: 'border-l-blue-500', bg: 'bg-blue-50', icon: '❄️', label: 'Helada' },
     lluvia_intensa: { border: 'border-l-cyan-500', bg: 'bg-cyan-50', icon: '🌧️', label: 'Lluvia intensa' },
     viento_fuerte: { border: 'border-l-orange-500', bg: 'bg-orange-50', icon: '💨', label: 'Viento fuerte' },
     granizo: { border: 'border-l-purple-500', bg: 'bg-purple-50', icon: '🌨️', label: 'Granizo' },
   };
-  const c = colors[alerta.tipo] || { border: 'border-l-gray-400', bg: 'bg-gray-50', icon: '⚠️', label: 'Alerta' };
-  const sevBadges = {
-    alta: '<span class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">URGENTE</span>',
-    media: '<span class="bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">Precaución</span>',
-    baja: '<span class="bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">Aviso</span>',
+  const BADGES = {
+    alta: 'URGENTE',
+    media: 'Precaución',
+    baja: 'Aviso',
   };
-  const sev = sevBadges[alerta.severidad] || sevBadges.media;
+  const c = COLORS[alerta.tipo] || { border: 'border-l-gray-400', bg: 'bg-gray-50', icon: '⚠️', label: 'Alerta' };
+  const badgeText = BADGES[alerta.severidad] || BADGES.media;
+  const badgeCls = {
+    alta: 'bg-red-500',
+    media: 'bg-amber-500',
+    baja: 'bg-green-500',
+  };
+  const bc = badgeCls[alerta.severidad] || 'bg-amber-500';
 
-  div.innerHTML = `<div class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-sm ${c.bg}">${c.icon}</div><div class="bg-white border-l-4 ${c.border} ${c.bg} rounded-r-lg px-4 py-3 max-w-[80%] shadow-sm"><div class="flex items-center gap-2 mb-1.5"><span class="text-[11px] font-bold uppercase text-gray-500">${c.label}</span>${sev}<span class="text-[10px] text-gray-400">${alerta.dia || ''}</span></div><p class="text-sm text-gray-800 whitespace-pre-wrap">${esc(alerta.mensaje)}</p></div>`;
+  // Avatar (sin user data)
+  const avatar = _el('div', 'flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-sm ' + c.bg);
+  _safeText(avatar, c.icon);
 
-  chat.appendChild(div);
+  // Card
+  const card = _el('div', 'bg-white border-l-4 ' + c.border + ' ' + c.bg + ' rounded-r-lg px-4 py-3 max-w-[80%] shadow-sm');
+
+  // Header row: label, badge, date
+  const header = _el('div', 'flex items-center gap-2 mb-1.5');
+  const labelEl = _el('span', 'text-[11px] font-bold uppercase text-gray-500');
+  _safeText(labelEl, c.label);
+
+  const badgeEl = _el('span', 'text-white text-[10px] px-2 py-0.5 rounded-full font-semibold ' + bc);
+  _safeText(badgeEl, badgeText);
+
+  const dateEl = _el('span', 'text-[10px] text-gray-400');
+  _safeText(dateEl, alerta.dia || '');
+
+  header.append(labelEl, badgeEl, dateEl);
+
+  // Message body (user data → textContent)
+  const msgEl = _el('p', 'text-sm text-gray-800 whitespace-pre-wrap');
+  _safeText(msgEl, alerta.mensaje);
+
+  card.append(header, msgEl);
+  row.append(avatar, card);
+  chat.appendChild(row);
   scrollDown();
 }
 

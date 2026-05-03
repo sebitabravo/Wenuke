@@ -1,12 +1,17 @@
 """Werken-mapu API — Asistente climático para pequeños agricultores de La Araucanía."""
 
+import hashlib
 import logging
+import secrets
+import time
 from contextlib import asynccontextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import cast
 
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from clima import clima_client
 from config import config
@@ -16,7 +21,8 @@ from db import (
     eliminar_parcela,
     init_db,
     obtener_parcelas,
-    obtener_usuario_por_token,
+    obtener_usuario_por_token_hash,
+    refresh_token as db_refresh_token,
     registrar_usuario,
 )
 from llm import llm_client
@@ -52,23 +58,66 @@ logger = logging.getLogger("wenuke.main")
 
 CULTIVOS_VALIDOS = {"papa", "trigo", "manzano", "general"}
 
+# Rate limiting simple (en memoria — suficiente para serverless MVP)
+_rate_limits: dict[str, list[float]] = {}
+_RATE_WINDOW = 60  # segundos
+
+
+def _check_rate_limit(key: str, max_requests: int) -> None:
+    """Rate limiter basado en sliding window. Lanza 429 si se excede."""
+    ahora = time.time()
+    ventana = [t for t in _rate_limits.get(key, []) if ahora - t < _RATE_WINDOW]
+    if len(ventana) >= max_requests:
+        raise HTTPException(status_code=429, detail="Demasiadas solicitudes. Esperá un minuto.")
+    ventana.append(ahora)
+    _rate_limits[key] = ventana
+
+
+# ---------------------------------------------------------------------------
+# Dependencies de autenticación (FastAPI Depends)
+# ---------------------------------------------------------------------------
+
+
+def _hash_token(token: str) -> str:
+    """Hash SHA-256 del token para comparación con BD."""
+    return hashlib.sha256(token.encode()).hexdigest()
+
 
 def _extraer_token(authorization: str) -> str:
     """Extrae el token de un header Authorization: Bearer <token>."""
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Formato: Authorization: Bearer <token>")
-    if len(authorization) < 8:
-        raise HTTPException(status_code=401, detail="Token vacío")
-    return authorization[7:]
+    token = authorization[7:]
+    if not token or len(token) < 8:
+        raise HTTPException(status_code=401, detail="Token vacío o inválido")
+    return token
 
 
-async def _auth_usuario(authorization: str) -> dict:
-    """Autentica usuario via header Authorization: Bearer <token>. Retorna dict usuario."""
+async def auth_usuario(authorization: str = Header(..., description="Bearer <token>")) -> dict:
+    """Dependency: autentica usuario y retorna dict con sus datos."""
     token = _extraer_token(authorization)
-    usuario = await obtener_usuario_por_token(token)
+    token_hash = _hash_token(token)
+    usuario = await obtener_usuario_por_token_hash(token_hash)
     if not usuario:
-        raise HTTPException(status_code=401, detail="Token inválido")
+        raise HTTPException(status_code=401, detail="Token inválido o expirado")
+    # Verificar expiración
+    expires_at = usuario.get("token_expires_at")
+    if expires_at:
+        expires_dt = datetime.fromisoformat(expires_at)
+        if expires_dt < datetime.now(timezone.utc):
+            raise HTTPException(status_code=401, detail="Token expirado. Volvé a registrarte.")
     return usuario
+
+
+async def auth_admin(authorization: str = Header(..., description="Admin Bearer <token>")) -> None:
+    """Dependency: autentica admin token con comparación en tiempo constante."""
+    if not config.admin_token_activo:
+        raise HTTPException(status_code=501, detail="Admin token no configurado en el servidor")
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Formato: Authorization: Bearer <token>")
+    provided = authorization[7:]
+    if not secrets.compare_digest(provided, config.admin_token):
+        raise HTTPException(status_code=403, detail="Admin token inválido")
 
 
 @asynccontextmanager
@@ -79,6 +128,23 @@ async def lifespan(app: FastAPI):
     alert_scheduler.detener()
 
 
+# ---------------------------------------------------------------------------
+# Seguridad: headers HTTP
+# ---------------------------------------------------------------------------
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "0"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
+        return response
+
+
 app = FastAPI(
     title="Werken-mapu API",
     description="Werken-mapu — Asistente climático con IA para pequeños agricultores de La Araucanía",
@@ -86,13 +152,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(SecurityHeadersMiddleware)
+
 origins = config.cors_origins.split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
@@ -160,7 +228,8 @@ async def clima(
 # POST /preguntar — Asistente conversacional
 # ---------------------------------------------------------------------------
 @app.post("/preguntar", response_model=PreguntarResponse)
-async def preguntar(req: PreguntarRequest):
+async def preguntar(req: PreguntarRequest, request: Request):
+    _check_rate_limit(f"preguntar:{request.client.host if request.client else 'unknown'}", 10)
     # Obtener contexto climático para el LLM
     if req.cultivo not in CULTIVOS_VALIDOS:
         raise HTTPException(status_code=400, detail=f"Cultivo no soportado: {req.cultivo}")
@@ -196,7 +265,8 @@ async def preguntar(req: PreguntarRequest):
 # POST /registrar — Alta de agricultor
 # ---------------------------------------------------------------------------
 @app.post("/registrar", response_model=RegistrarResponse)
-async def registrar(req: RegistrarRequest):
+async def registrar(req: RegistrarRequest, request: Request):
+    _check_rate_limit(f"registrar:{request.client.host if request.client else 'unknown'}", 3)
     try:
         resultado = await registrar_usuario({
             "whatsapp": req.whatsapp,
@@ -227,8 +297,7 @@ async def registrar(req: RegistrarRequest):
 # Parcelas CRUD
 # ---------------------------------------------------------------------------
 @app.get("/parcelas", response_model=ParcelasListResponse)
-async def listar_parcelas(authorization: str = Header(..., description="Bearer <token>")):
-    usuario = await _auth_usuario(authorization)
+async def listar_parcelas(usuario: dict = Depends(auth_usuario)):
 
     parcelas = await obtener_parcelas(usuario["id"])
     max_parcelas = 1 if usuario["plan"] == "free" else 10
@@ -244,10 +313,8 @@ async def listar_parcelas(authorization: str = Header(..., description="Bearer <
 @app.post("/parcelas", response_model=ParcelaResponse)
 async def crear_parcela(
     req: ParcelaRequest,
-    authorization: str = Header(..., description="Bearer <token>"),
+    usuario: dict = Depends(auth_usuario),
 ):
-    usuario = await _auth_usuario(authorization)
-
     try:
         parcela_id = await agregar_parcela(usuario["id"], req.model_dump())
     except ValueError as e:
@@ -259,9 +326,8 @@ async def crear_parcela(
 @app.delete("/parcelas/{parcela_id}")
 async def borrar_parcela(
     parcela_id: int,
-    authorization: str = Header(..., description="Bearer <token>"),
+    usuario: dict = Depends(auth_usuario),
 ):
-    usuario = await _auth_usuario(authorization)
 
     eliminado = await eliminar_parcela(parcela_id, usuario["id"])
     if not eliminado:
@@ -274,8 +340,7 @@ async def borrar_parcela(
 # Plan / Suscripción
 # ---------------------------------------------------------------------------
 @app.get("/plan", response_model=PlanResponse)
-async def ver_plan(authorization: str = Header(..., description="Bearer <token>")):
-    usuario = await _auth_usuario(authorization)
+async def ver_plan(usuario: dict = Depends(auth_usuario)):
 
     parcelas = await obtener_parcelas(usuario["id"])
     max_parcelas = 1 if usuario["plan"] == "free" else 10
@@ -292,9 +357,8 @@ async def ver_plan(authorization: str = Header(..., description="Bearer <token>"
 @app.post("/plan", response_model=PlanResponse)
 async def cambiar_plan(
     req: ActualizarPlanRequest,
-    authorization: str = Header(..., description="Bearer <token>"),
+    usuario: dict = Depends(auth_usuario),
 ):
-    usuario = await _auth_usuario(authorization)
 
     actualizado = await actualizar_plan(usuario["id"], req.plan)
     parcelas = await obtener_parcelas(usuario["id"])
@@ -306,6 +370,22 @@ async def cambiar_plan(
         plan=actualizado["plan"],
         parcelas_actuales=len(parcelas),
         parcelas_max=max_parcelas,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /refresh-token — Rotar token de autenticación
+# ---------------------------------------------------------------------------
+
+
+@app.post("/refresh-token", response_model=RegistrarResponse)
+async def refresh_token(usuario: dict = Depends(auth_usuario)):
+    resultado = await db_refresh_token(usuario["id"])
+    return RegistrarResponse(
+        mensaje="Token renovado con éxito. Guardalo bien.",
+        usuario_id=resultado["usuario_id"],
+        token=resultado["token"],
+        parcela_id=resultado.get("parcela_id", 0),
     )
 
 
@@ -420,11 +500,6 @@ async def historico(
 # POST /enviar-alertas — Dispatch manual de alertas (protegido con admin token)
 # ---------------------------------------------------------------------------
 @app.post("/enviar-alertas", response_model=EnviarAlertasResponse)
-async def enviar_alertas(authorization: str = Header(..., description="Admin Bearer <token>")):
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Admin token requerido — usar Authorization: Bearer <token>")
-    if authorization[7:] != config.admin_token:
-        raise HTTPException(status_code=403, detail="Admin token inválido")
-
+async def enviar_alertas(_: None = Depends(auth_admin)):
     resultado = await ejecutar_chequeo_alertas()
     return EnviarAlertasResponse(**resultado)

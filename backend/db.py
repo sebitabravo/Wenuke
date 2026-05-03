@@ -9,7 +9,9 @@ Todas las funciones públicas son async nativas — sin ThreadPoolExecutor.
 
 from __future__ import annotations
 
+import hashlib
 import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from config import config
@@ -183,8 +185,20 @@ class _AiosqliteBackend:
 # ======================================================================
 
 
-def _generar_token() -> str:
-    return secrets.token_urlsafe(32)
+def _generar_token() -> tuple[str, str]:
+    """Retorna (token_plano, token_hash). El hash se almacena en BD."""
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    return token, token_hash
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _token_expires_at(days: int | None = None) -> str:
+    dias = days if days is not None else config.token_expiry_days
+    return (datetime.now(timezone.utc) + timedelta(days=dias)).isoformat()
 
 
 # ======================================================================
@@ -202,7 +216,8 @@ async def init_db() -> None:
             whatsapp TEXT UNIQUE NOT NULL,
             nombre TEXT NOT NULL,
             plan TEXT NOT NULL DEFAULT 'free' CHECK(plan IN ('free', 'premium')),
-            token TEXT UNIQUE,
+            token_hash TEXT UNIQUE,
+            token_expires_at TIMESTAMP,
             creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -237,10 +252,20 @@ async def init_db() -> None:
     try:
         await db.execute("ALTER TABLE usuarios ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'")
     except Exception:  # pragma: no cover — solo en migración
-        pass  # Ya existe
+        pass
 
     try:
         await db.execute("ALTER TABLE usuarios ADD COLUMN token TEXT")
+    except Exception:  # pragma: no cover
+        pass
+
+    try:
+        await db.execute("ALTER TABLE usuarios ADD COLUMN token_hash TEXT")
+    except Exception:  # pragma: no cover
+        pass
+
+    try:
+        await db.execute("ALTER TABLE usuarios ADD COLUMN token_expires_at TIMESTAMP")
     except Exception:  # pragma: no cover
         pass
 
@@ -258,14 +283,15 @@ async def init_db() -> None:
 
 
 async def registrar_usuario(data: dict) -> dict:
-    """Registra usuario, parcela inicial y cultivos. Retorna dict con id y token."""
+    """Registra usuario, parcela inicial y cultivos. Retorna dict con id, token (plano, solo 1 vez) y parcela_id."""
     db = await _get_db()
-    token = _generar_token()
+    token_plano, token_hash = _generar_token()
+    expires_at = _token_expires_at()
     await db.begin()
     try:
         usuario_id = await db.insert(
-            "INSERT INTO usuarios (whatsapp, nombre, plan, token) VALUES (?, ?, ?, ?)",
-            (data["whatsapp"], data["nombre"], data.get("plan", "free"), token),
+            "INSERT INTO usuarios (whatsapp, nombre, plan, token_hash, token_expires_at) VALUES (?, ?, ?, ?, ?)",
+            (data["whatsapp"], data["nombre"], data.get("plan", "free"), token_hash, expires_at),
         )
 
         parcela_id = await db.insert(
@@ -285,7 +311,7 @@ async def registrar_usuario(data: dict) -> dict:
             )
 
         await db.commit()
-        return {"usuario_id": usuario_id, "token": token, "parcela_id": parcela_id}
+        return {"usuario_id": usuario_id, "token": token_plano, "parcela_id": parcela_id}
     except Exception:
         await db.rollback()
         # Re-lanzar IntegrityError como ValueError para mantener compatibilidad
@@ -294,10 +320,28 @@ async def registrar_usuario(data: dict) -> dict:
         raise
 
 
-async def obtener_usuario_por_token(token: str) -> dict | None:
-    """Obtiene usuario por token de autenticación."""
+async def obtener_usuario_por_token_hash(token_hash: str) -> dict | None:
+    """Obtiene usuario por hash SHA-256 del token. Verifica expiración."""
     db = await _get_db()
-    return await db.fetchone("SELECT * FROM usuarios WHERE token = ?", (token,))
+    return await db.fetchone("SELECT * FROM usuarios WHERE token_hash = ?", (token_hash,))
+
+
+async def refresh_token(usuario_id: int) -> dict:
+    """Genera nuevo token, actualiza hash y expiración. Retorna token plano."""
+    db = await _get_db()
+    token_plano, token_hash = _generar_token()
+    expires_at = _token_expires_at()
+    await db.begin()
+    try:
+        await db.execute(
+            "UPDATE usuarios SET token_hash = ?, token_expires_at = ? WHERE id = ?",
+            (token_hash, expires_at, usuario_id),
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+    return {"usuario_id": usuario_id, "token": token_plano}
 
 
 async def actualizar_plan(usuario_id: int, plan: str) -> dict:
@@ -338,9 +382,11 @@ async def _obtener_parcelas_usuario(db, usuario_id: int) -> list[dict]:
 
     # Cargar todos los cultivos en una sola query (sin N+1)
     parcelas_ids = [p["id"] for p in parcelas]
-    placeholders = ",".join("?" * len(parcelas_ids))
+    if not parcelas_ids:
+        return []
+    placeholders = ",".join("?" for _ in parcelas_ids)
     cultivos_raw = await db.fetchall(
-        f"SELECT parcela_id, tipo FROM cultivos WHERE parcela_id IN ({placeholders})",
+        "SELECT parcela_id, tipo FROM cultivos WHERE parcela_id IN (" + placeholders + ")",
         tuple(parcelas_ids),
     )
 
