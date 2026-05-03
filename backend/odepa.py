@@ -5,6 +5,8 @@ import re
 import time
 from datetime import datetime
 
+from constants import CULTIVOS_PRODUCTIVOS
+
 logger = logging.getLogger("wenuke.odepa")
 
 # Precios de referencia por producto (CLP/kg) — actualizados cada temporada
@@ -164,9 +166,8 @@ class ODEPAClient:
         """Obtiene precios de todos los productos soportados en paralelo."""
         import asyncio
 
-        productos = ["papa", "trigo", "manzano"]
         resultados = await asyncio.gather(
-            *(self.fetch_precios(p) for p in productos)
+            *(self.fetch_precios(p) for p in CULTIVOS_PRODUCTIVOS)
         )
         return list(resultados)
 

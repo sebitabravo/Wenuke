@@ -15,6 +15,11 @@ from starlette.responses import Response
 
 from clima import clima_client
 from config import config
+from constants import (
+    CULTIVOS_PRODUCTIVOS,
+    CULTIVOS_VALIDOS,
+    PLAN_FREE,
+)
 from db import (
     actualizar_plan,
     agregar_parcela,
@@ -56,8 +61,6 @@ from servicios import obtener_contexto_clima
 
 configurar_logging()
 logger = logging.getLogger("wenuke.main")
-
-CULTIVOS_VALIDOS = {"papa", "trigo", "manzano", "general"}
 
 # Rate limiting simple (en memoria — suficiente para serverless MVP)
 _rate_limits: dict[str, list[float]] = {}
@@ -309,7 +312,7 @@ async def registrar(req: RegistrarRequest, request: Request):
 async def listar_parcelas(usuario: dict = Depends(auth_usuario)):
 
     parcelas = await obtener_parcelas(usuario["id"])
-    max_parcelas = 1 if usuario["plan"] == "free" else 10
+    max_parcelas = 1 if usuario["plan"] == PLAN_FREE else 10
 
     return ParcelasListResponse(
         usuario_id=usuario["id"],
@@ -352,7 +355,7 @@ async def borrar_parcela(
 async def ver_plan(usuario: dict = Depends(auth_usuario)):
 
     parcelas = await obtener_parcelas(usuario["id"])
-    max_parcelas = 1 if usuario["plan"] == "free" else 10
+    max_parcelas = 1 if usuario["plan"] == PLAN_FREE else 10
 
     return PlanResponse(
         usuario_id=usuario["id"],
@@ -371,7 +374,7 @@ async def cambiar_plan(
 
     actualizado = await actualizar_plan(usuario["id"], req.plan)
     parcelas = await obtener_parcelas(usuario["id"])
-    max_parcelas = 1 if req.plan == "free" else 10
+    max_parcelas = 1 if req.plan == PLAN_FREE else 10
 
     return PlanResponse(
         usuario_id=actualizado["id"],
@@ -406,7 +409,7 @@ async def precios(
     producto: str | None = Query(None, description="Filtrar por producto: papa, trigo, manzano"),
 ):
     if producto:
-        if producto not in ("papa", "trigo", "manzano"):
+        if producto not in CULTIVOS_PRODUCTIVOS:
             raise HTTPException(status_code=400, detail=f"Producto no soportado: {producto}")
         datos = [await odepa_client.fetch_precios(producto)]
     else:

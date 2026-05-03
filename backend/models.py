@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from constants import CULTIVO_GENERAL, PLAN_FREE, PLANES_VALIDOS
+
 # ---------------------------------------------------------------------------
 # Alerta climática
 # ---------------------------------------------------------------------------
@@ -145,7 +147,7 @@ class PreguntarRequest(BaseModel):
         description="Longitud de la ubicación de la consulta",
     )
     cultivo: str = Field(
-        default="general",
+        default=CULTIVO_GENERAL,
         description="Cultivo sobre el cual se consulta",
     )
 
@@ -190,7 +192,7 @@ class PreguntarResponse(BaseModel):
 RE_CHILE_WHATSAPP = re.compile(r"^\+?56\s?9\s?\d{4}\s?\d{4}$")
 
 
-CHILE_CULTIVOS = Literal["papa", "trigo", "manzano", "general"]
+CHILE_CULTIVOS = Literal["papa", "trigo", "manzano", "general"]  # type: ignore[valid-type]
 
 
 class RegistrarRequest(BaseModel):
@@ -222,7 +224,7 @@ class RegistrarRequest(BaseModel):
         description="Lista de cultivos a monitorear. Valores permitidos: papa, trigo, manzano, general",
     )
     plan: str = Field(
-        default="free",
+        default=PLAN_FREE,
         description="Plan: free o premium",
     )
     nombre_parcela: str = Field(
@@ -256,8 +258,8 @@ class RegistrarRequest(BaseModel):
     @field_validator("plan")
     @classmethod
     def plan_valido(cls, v: str) -> str:
-        if v not in ("free", "premium"):
-            raise ValueError("Plan debe ser 'free' o 'premium'")
+        if v not in PLANES_VALIDOS:
+            raise ValueError(f"Plan debe ser uno de: {PLANES_VALIDOS}")
         return v
 
     model_config = {"json_schema_extra": {"examples": [
@@ -334,8 +336,8 @@ class ActualizarPlanRequest(BaseModel):
     @field_validator("plan")
     @classmethod
     def plan_valido(cls, v: str) -> str:
-        if v not in ("free", "premium"):
-            raise ValueError("Plan debe ser 'free' o 'premium'")
+        if v not in PLANES_VALIDOS:
+            raise ValueError(f"Plan debe ser uno de: {PLANES_VALIDOS}")
         return v
 
 

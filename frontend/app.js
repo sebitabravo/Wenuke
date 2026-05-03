@@ -88,13 +88,27 @@ function onCoordInputChange() {
   }
 }
 
+// Clases base para botones de cultivo — se definen en HTML, no en JS.
+// JS solo alterna la clase cultivo-active via classList.
+const CULTIVO_ACTIVE_CLS = [
+  'bg-wa-medium', 'text-white',
+];
+const CULTIVO_INACTIVE_CLS = [
+  'bg-white', 'text-gray-600', 'border', 'border-gray-200',
+  'hover:border-wa-light', 'hover:text-wa-medium',
+];
+
 function selectCrop(cultivo) {
   state.cultivo = cultivo;
   document.querySelectorAll('.cultivo-btn').forEach(b => {
     const sel = b.dataset.cultivo === cultivo;
-    b.className = sel
-      ? 'cultivo-btn flex-shrink-0 bg-wa-medium text-white rounded-full px-4 py-1.5 text-sm font-medium transition-all cultivo-active'
-      : 'cultivo-btn flex-shrink-0 bg-white text-gray-600 border border-gray-200 rounded-full px-4 py-1.5 text-sm font-medium transition-all hover:border-wa-light hover:text-wa-medium';
+    if (sel) {
+      b.classList.add('cultivo-active', ...CULTIVO_ACTIVE_CLS);
+      b.classList.remove(...CULTIVO_INACTIVE_CLS);
+    } else {
+      b.classList.remove('cultivo-active', ...CULTIVO_ACTIVE_CLS);
+      b.classList.add(...CULTIVO_INACTIVE_CLS);
+    }
   });
   updateStatus();
 }
@@ -109,10 +123,12 @@ function updateStatus() {
   const dot = document.getElementById('status-dot');
   const txt = document.getElementById('header-status');
   if (state.online) {
-    dot.className = 'w-1.5 h-1.5 rounded-full bg-green-300';
+    dot.classList.remove('bg-red-400');
+    dot.classList.add('bg-green-300');
     txt.textContent = `en línea · ${state.cultivo} · ${state.lat.toFixed(1)}°,${state.lon.toFixed(1)}°`;
   } else {
-    dot.className = 'w-1.5 h-1.5 rounded-full bg-red-400';
+    dot.classList.remove('bg-green-300');
+    dot.classList.add('bg-red-400');
     txt.textContent = 'sin conexión';
   }
 }
@@ -321,6 +337,9 @@ function now() {
 
 function id(s) { return document.getElementById(s); }
 
+// Fallback offline de último recurso — solo se usa si el backend es inalcanzable.
+// La fuente de verdad primaria es llm.py:_hardcoded_respuestas() + respuestas_offline.json.
+// Este bloque existe para que la UI no quede en blanco sin conectividad alguna.
 function offlineFallback(p) {
   const q = p.toLowerCase();
   let r = 'Compa, no tengo conexión al asistente. Probá con el botón de clima ☀️ o intentá de nuevo más tarde.\n\n📵 _Respuesta offline._';

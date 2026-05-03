@@ -3,6 +3,7 @@ import logging
 from typing import cast
 
 from clima import clima_client
+from constants import CULTIVOS_PRODUCTIVOS
 from db import (
     obtener_usuarios_con_cultivo,
     registrar_alerta,
@@ -15,12 +16,15 @@ logger = logging.getLogger("wenuke.servicio_alertas")
 
 async def ejecutar_chequeo_alertas() -> dict:
     """Ejecuta chequeo completo de alertas para todos los cultivos y usuarios.
-    Retorna dict con métricas: enviadas, usuarios_afectados, envios_fallidos, detalle."""
+
+    Itera solo sobre CULTIVOS_PRODUCTIVOS (papa, trigo, manzano).
+    Se excluye 'general' porque es un cultivo comodín sin reglas agronómicas propias.
+    """
     detalle = []
     usuarios_alertados = set()
     envios_fallidos = 0
 
-    for cultivo_str in ["papa", "trigo", "manzano"]:
+    for cultivo_str in CULTIVOS_PRODUCTIVOS:
         cultivo = cast(Cultivo, cultivo_str)
         usuarios = await obtener_usuarios_con_cultivo(cultivo)
         if not usuarios:

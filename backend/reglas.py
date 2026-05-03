@@ -6,6 +6,25 @@ import logging
 from pathlib import Path
 from typing import Literal
 
+from constants import (
+    ACCION_COSECHAR,
+    ACCION_FUMIGAR,
+    ACCION_REGAR,
+    ACCION_SEMBRAR,
+    CONFIANZA_ALTA,
+    CONFIANZA_BAJA,
+    CONFIANZA_MEDIA,
+    REC_ESPERAR,
+    REC_MONITOREAR,
+    REC_NO,
+    REC_PRECAUCION,
+    REC_SI,
+    SEVERIDAD_ALTA,
+    SEVERIDAD_BAJA,
+    SEVERIDAD_MEDIA,
+    SEVERIDAD_ORDEN,
+)
+
 logger = logging.getLogger("wenuke.reglas")
 
 Cultivo = Literal["papa", "trigo", "manzano", "general"]
@@ -127,28 +146,28 @@ _REGLAS_HARDCODEADAS: dict[Cultivo, dict] = {
 
 def _severidad_helada(temp: float, umbral: float, severa: float) -> str:
     if temp <= severa:
-        return "alta"
-    return "media"
+        return SEVERIDAD_ALTA
+    return SEVERIDAD_MEDIA
 
 
 def _severidad_lluvia(total: float, umbral: float) -> str:
     if total >= umbral * 1.5:
-        return "alta"
-    return "media"
+        return SEVERIDAD_ALTA
+    return SEVERIDAD_MEDIA
 
 
 def _severidad_viento(vel: float, umbral: float) -> str:
     if vel >= umbral + 10:
-        return "alta"
-    return "media"
+        return SEVERIDAD_ALTA
+    return SEVERIDAD_MEDIA
 
 
 def _severidad_granizo(precip_hora: float, umbral: float) -> str:
     if precip_hora >= umbral * 1.5:
-        return "alta"
+        return SEVERIDAD_ALTA
     if precip_hora >= umbral * 1.2:
-        return "media"
-    return "baja"
+        return SEVERIDAD_MEDIA
+    return SEVERIDAD_BAJA
 
 
 def evaluar_reglas(forecast_hourly: list[dict], cultivo: Cultivo = "general") -> dict:
@@ -228,8 +247,7 @@ def evaluar_reglas(forecast_hourly: list[dict], cultivo: Cultivo = "general") ->
             })
 
     # Ordenar por severidad y día
-    orden = {"alta": 0, "media": 1, "baja": 2}
-    alertas.sort(key=lambda a: (a["dia"], orden.get(a["severidad"], 2)))
+    alertas.sort(key=lambda a: (a["dia"], SEVERIDAD_ORDEN.get(a["severidad"], 2)))
 
     return {
         "alertas": alertas,
@@ -244,198 +262,198 @@ def evaluar_alertas_para_cultivo(forecast_hourly: list[dict], cultivo: Cultivo, 
     return resultado
 
 
+def _build_context_agronomico(
+    forecast_hourly: list[dict], daily: list[dict], cultivo: Cultivo
+) -> dict:
+    """Construye diccionario con todos los datos necesarios para generar recomendaciones."""
+    hoy = daily[0]
+    manana = daily[1] if len(daily) > 1 else hoy
+    reglas = cargar_reglas().get(cultivo, cargar_reglas()["general"])
+
+    lluvia_3d = (
+        hoy.get("precipitacion_total", 0)
+        + manana.get("precipitacion_total", 0)
+        + (daily[2].get("precipitacion_total", 0) if len(daily) > 2 else 0)
+    )
+
+    return {
+        "nombre": reglas["nombre"],
+        "reglas": reglas,
+        "temp_min_hoy": hoy.get("temp_min") or 0,
+        "temp_max_hoy": hoy.get("temp_max") or 20,
+        "temp_min_manana": manana.get("temp_min") or hoy.get("temp_min") or 0,
+        "lluvia_hoy": hoy.get("precipitacion_total", 0),
+        "lluvia_manana": manana.get("precipitacion_total", 0),
+        "lluvia_3d": lluvia_3d,
+        "viento_hoy": hoy.get("viento_max") or 0,
+        "lluvia_proximas_6h": sum(
+            p.get("precipitacion", 0) for p in forecast_hourly[:6]
+        ),
+    }
+
+
+def _recomendar_fumigar(ctx: dict) -> dict:
+    r = ctx["reglas"]
+    ok = (
+        ctx["viento_hoy"] < r["viento_fumigar_max"]
+        and ctx["lluvia_hoy"] < r["lluvia_fumigar_max"]
+        and ctx["lluvia_manana"] < r["lluvia_manana_fumigar_max"]
+        and ctx["temp_max_hoy"] < r["temp_fumigar_max"]
+    )
+    mal = ctx["viento_hoy"] >= r["viento_fumigar_max"] or ctx["lluvia_hoy"] >= r["lluvia_fumigar_max"]
+
+    if ok:
+        return {
+            "accion": ACCION_FUMIGAR, "recomendacion": REC_SI, "confianza": CONFIANZA_ALTA,
+            "detalle": (
+                f"Hoy es buen día para fumigar tu {ctx['nombre']}. Sin viento fuerte, "
+                f"sin lluvia a la vista, y temperatura bajo {r['temp_fumigar_max']:.0f}°C. "
+                f"Hacelo temprano en la mañana."
+            ),
+        }
+    if mal:
+        return {
+            "accion": ACCION_FUMIGAR, "recomendacion": REC_NO, "confianza": CONFIANZA_ALTA,
+            "detalle": (
+                f"Hoy NO conviene fumigar tu {ctx['nombre']}. "
+                f"{'Hay viento fuerte.' if ctx['viento_hoy'] >= r['viento_fumigar_max'] else ''}"
+                f"{'Hay lluvia prevista.' if ctx['lluvia_hoy'] >= r['lluvia_fumigar_max'] else ''}"
+                f"{'Se espera lluvia mañana.' if ctx['lluvia_manana'] >= r['lluvia_manana_fumigar_max'] else ''}"
+            ),
+        }
+    return {
+        "accion": ACCION_FUMIGAR, "recomendacion": REC_PRECAUCION, "confianza": CONFIANZA_MEDIA,
+        "detalle": (
+            f"Si vas a fumigar tu {ctx['nombre']}, hacelo temprano y revisá que no haya viento. "
+            f"Temperatura máxima de {ctx['temp_max_hoy']:.0f}°C."
+        ),
+    }
+
+
+def _recomendar_regar(ctx: dict) -> dict:
+    r = ctx["reglas"]
+    if ctx["lluvia_hoy"] >= r["riego_lluvia_suficiente"] or ctx["lluvia_proximas_6h"] >= 5:
+        return {
+            "accion": ACCION_REGAR, "recomendacion": REC_NO, "confianza": CONFIANZA_ALTA,
+            "detalle": (
+                f"Hoy NO hace falta regar. Se esperan {ctx['lluvia_hoy']:.0f} mm de lluvia. "
+                f"Aprovechá para revisar drenajes."
+            ),
+        }
+    if ctx["lluvia_hoy"] < 2 and ctx["lluvia_proximas_6h"] < 2 and ctx["temp_max_hoy"] > r["temp_riego_min"]:
+        return {
+            "accion": ACCION_REGAR, "recomendacion": REC_SI, "confianza": CONFIANZA_MEDIA,
+            "detalle": (
+                f"Conviene regar tu {ctx['nombre']} hoy. Poca lluvia prevista y temperatura "
+                f"máxima de {ctx['temp_max_hoy']:.0f}°C. Regá al atardecer para evitar evaporación."
+            ),
+        }
+    return {
+        "accion": ACCION_REGAR, "recomendacion": REC_MONITOREAR, "confianza": CONFIANZA_BAJA,
+        "detalle": (
+            f"Revisá la humedad del suelo antes de regar. "
+            f"Lluvia prevista: {ctx['lluvia_hoy']:.0f} mm hoy, {ctx['lluvia_manana']:.0f} mm mañana."
+        ),
+    }
+
+
+def _recomendar_sembrar(ctx: dict) -> dict:
+    r = ctx["reglas"]
+    # Riesgo de helada mañana: semilla recién sembrada es vulnerable
+    if ctx["temp_min_manana"] <= r["temp_min"]:
+        return {
+            "accion": ACCION_SEMBRAR, "recomendacion": REC_NO, "confianza": CONFIANZA_ALTA,
+            "detalle": (
+                f"No siembres {ctx['nombre']} hoy. Se espera helada mañana con temperatura "
+                f"mínima de {ctx['temp_min_manana']:.0f}°C. Las semillas y brotes recién "
+                f"sembrados son muy vulnerables a la congelación."
+            ),
+        }
+    if (
+        ctx["temp_min_hoy"] > r["siembra_temp_min"]
+        and ctx["lluvia_3d"] < r["siembra_lluvia_3d_max"]
+        and ctx["viento_hoy"] < r["siembra_viento_max"]
+    ):
+        return {
+            "accion": ACCION_SEMBRAR, "recomendacion": REC_SI, "confianza": CONFIANZA_MEDIA,
+            "detalle": (
+                f"Buen momento para sembrar {ctx['nombre']}. Suelo con temperatura adecuada "
+                f"(>{r['siembra_temp_min']:.0f}°C), sin exceso de lluvia en los próximos 3 días "
+                f"({ctx['lluvia_3d']:.0f} mm)."
+            ),
+        }
+    if ctx["temp_min_hoy"] <= r["siembra_temp_min"]:
+        return {
+            "accion": ACCION_SEMBRAR, "recomendacion": REC_NO, "confianza": CONFIANZA_ALTA,
+            "detalle": (
+                f"No siembres {ctx['nombre']} hoy. Temperatura mínima de "
+                f"{ctx['temp_min_hoy']:.0f}°C, riesgo de daño por frío en semillas y brotes."
+            ),
+        }
+    return {
+        "accion": ACCION_SEMBRAR, "recomendacion": REC_ESPERAR, "confianza": CONFIANZA_MEDIA,
+        "detalle": (
+            f"Esperá unos días para sembrar {ctx['nombre']}. "
+            f"Lluvia acumulada en 3 días: {ctx['lluvia_3d']:.0f} mm. "
+            f"Viento: {ctx['viento_hoy']:.0f} km/h."
+        ),
+    }
+
+
+def _recomendar_cosechar(ctx: dict) -> dict:
+    r = ctx["reglas"]
+    if (
+        ctx["lluvia_3d"] < r["cosecha_lluvia_3d_max"]
+        and ctx["temp_max_hoy"] < r["cosecha_temp_max"]
+        and ctx["viento_hoy"] < r["cosecha_viento_max"]
+    ):
+        return {
+            "accion": ACCION_COSECHAR, "recomendacion": REC_SI, "confianza": CONFIANZA_ALTA,
+            "detalle": (
+                f"Buen momento para cosechar tu {ctx['nombre']}. Ventana de 3 días secos, "
+                f"temperatura máxima de {ctx['temp_max_hoy']:.0f}°C. "
+                f"La cosecha en seco da mejor calidad."
+            ),
+        }
+    if ctx["lluvia_hoy"] >= 5:
+        return {
+            "accion": ACCION_COSECHAR, "recomendacion": REC_NO, "confianza": CONFIANZA_ALTA,
+            "detalle": (
+                f"No coseches {ctx['nombre']} hoy. Lluvia de {ctx['lluvia_hoy']:.0f} mm. "
+                f"La cosecha con lluvia daña la calidad y favorece hongos en almacenamiento."
+            ),
+        }
+    return {
+        "accion": ACCION_COSECHAR, "recomendacion": REC_PRECAUCION, "confianza": CONFIANZA_MEDIA,
+        "detalle": (
+            f"Si vas a cosechar tu {ctx['nombre']}, revisá que no llueva en las próximas 6 horas. "
+            f"Temperatura: {ctx['temp_min_hoy']:.0f}°C – {ctx['temp_max_hoy']:.0f}°C."
+        ),
+    }
+
+
 def generar_recomendaciones(forecast_hourly: list[dict], daily: list[dict], cultivo: Cultivo) -> list[dict]:
-    """Genera recomendaciones diarias accionables para el agricultor."""
+    """Genera recomendaciones diarias accionables para el agricultor.
+
+    Delega cada tipo de recomendación a su propia función (fumigar, regar,
+    sembrar, cosechar) para mantener baja la complejidad ciclomática.
+    """
     if not daily:
         return []
 
-    hoy = daily[0]
-    manana = daily[1] if len(daily) > 1 else hoy
-
-    reglas = cargar_reglas().get(cultivo, cargar_reglas()["general"])
-    nombre = reglas["nombre"]
-
-    temp_min_hoy = hoy.get("temp_min") or 0
-    temp_max_hoy = hoy.get("temp_max") or 20
-    temp_min_manana = manana.get("temp_min") or temp_min_hoy
-    lluvia_hoy = hoy.get("precipitacion_total", 0)
-    lluvia_manana = manana.get("precipitacion_total", 0)
-    viento_hoy = hoy.get("viento_max") or 0
-
-    # Determinar horas de lluvia hoy
-    lluvia_proximas_6h = sum(
-        p.get("precipitacion", 0)
-        for p in forecast_hourly[:6]
-    )
-
-    # Cargar umbrales del cultivo
-    v_fumigar = reglas["viento_fumigar_max"]
-    l_fumigar = reglas["lluvia_fumigar_max"]
-    t_fumigar = reglas["temp_fumigar_max"]
-    l_manana_fumigar = reglas["lluvia_manana_fumigar_max"]
-    riego_lluvia = reglas["riego_lluvia_suficiente"]
-    t_riego = reglas["temp_riego_min"]
-    siembra_tmin = reglas["siembra_temp_min"]
-    siembra_lluvia = reglas["siembra_lluvia_3d_max"]
-    siembra_viento = reglas["siembra_viento_max"]
-    cosecha_lluvia = reglas["cosecha_lluvia_3d_max"]
-    cosecha_temp = reglas["cosecha_temp_max"]
-    cosecha_viento = reglas["cosecha_viento_max"]
-
-    recs = []
-
-    # --- Fumigar ---
-    if viento_hoy < v_fumigar and lluvia_hoy < l_fumigar and lluvia_manana < l_manana_fumigar and temp_max_hoy < t_fumigar:
-        recs.append({
-            "accion": "fumigar",
-            "recomendacion": "Sí",
-            "confianza": "alta",
-            "detalle": (
-                f"Hoy es buen día para fumigar tu {nombre}. Sin viento fuerte, sin lluvia a la vista, "
-                f"y temperatura bajo {t_fumigar:.0f}°C. Hacelo temprano en la mañana."
-            ),
-        })
-    elif viento_hoy >= v_fumigar or lluvia_hoy >= l_fumigar:
-        recs.append({
-            "accion": "fumigar",
-            "recomendacion": "No",
-            "confianza": "alta",
-            "detalle": (
-                f"Hoy NO conviene fumigar tu {nombre}. "
-                f"{'Hay viento fuerte.' if viento_hoy >= v_fumigar else ''}"
-                f"{'Hay lluvia prevista.' if lluvia_hoy >= l_fumigar else ''}"
-                f"{'Se espera lluvia mañana.' if lluvia_manana >= l_manana_fumigar else ''}"
-            ),
-        })
-    else:
-        recs.append({
-            "accion": "fumigar",
-            "recomendacion": "Precaución",
-            "confianza": "media",
-            "detalle": (
-                f"Si vas a fumigar tu {nombre}, hacelo temprano y revisá que no haya viento. "
-                f"Temperatura máxima de {temp_max_hoy:.0f}°C."
-            ),
-        })
-
-    # --- Regar ---
-    if lluvia_hoy >= riego_lluvia or lluvia_proximas_6h >= 5:
-        recs.append({
-            "accion": "regar",
-            "recomendacion": "No",
-            "confianza": "alta",
-            "detalle": (
-                f"Hoy NO hace falta regar. Se esperan {lluvia_hoy:.0f} mm de lluvia. "
-                f"Aprovechá para revisar drenajes."
-            ),
-        })
-    elif lluvia_hoy < 2 and lluvia_proximas_6h < 2 and temp_max_hoy > t_riego:
-        recs.append({
-            "accion": "regar",
-            "recomendacion": "Sí",
-            "confianza": "media",
-            "detalle": (
-                f"Conviene regar tu {nombre} hoy. Poca lluvia prevista y temperatura máxima de {temp_max_hoy:.0f}°C. "
-                f"Regá al atardecer para evitar evaporación."
-            ),
-        })
-    else:
-        recs.append({
-            "accion": "regar",
-            "recomendacion": "Monitorear",
-            "confianza": "baja",
-            "detalle": (
-                f"Revisá la humedad del suelo antes de regar. "
-                f"Lluvia prevista: {lluvia_hoy:.0f} mm hoy, {lluvia_manana:.0f} mm mañana."
-            ),
-        })
-
-    # --- Sembrar ---
-    lluvia_3d = lluvia_hoy + lluvia_manana + (daily[2].get("precipitacion_total", 0) if len(daily) > 2 else 0)
-
-    # Primero: revisar riesgo de helada mañana (semilla recién sembrada es vulnerable)
-    if temp_min_manana <= reglas["temp_min"]:
-        recs.append({
-            "accion": "sembrar",
-            "recomendacion": "No",
-            "confianza": "alta",
-            "detalle": (
-                f"No siembres {nombre} hoy. Se espera helada mañana con temperatura "
-                f"mínima de {temp_min_manana:.0f}°C. Las semillas y brotes recién sembrados "
-                f"son muy vulnerables a la congelación."
-            ),
-        })
-    elif temp_min_hoy > siembra_tmin and lluvia_3d < siembra_lluvia and viento_hoy < siembra_viento:
-        recs.append({
-            "accion": "sembrar",
-            "recomendacion": "Sí",
-            "confianza": "media",
-            "detalle": (
-                f"Buen momento para sembrar {nombre}. Suelo con temperatura adecuada "
-                f"(>{siembra_tmin:.0f}°C), sin exceso de lluvia en los próximos 3 días "
-                f"({lluvia_3d:.0f} mm)."
-            ),
-        })
-    elif temp_min_hoy <= siembra_tmin:
-        recs.append({
-            "accion": "sembrar",
-            "recomendacion": "No",
-            "confianza": "alta",
-            "detalle": (
-                f"No siembres {nombre} hoy. Temperatura mínima de {temp_min_hoy:.0f}°C, "
-                f"riesgo de daño por frío en semillas y brotes."
-            ),
-        })
-    else:
-        recs.append({
-            "accion": "sembrar",
-            "recomendacion": "Esperar",
-            "confianza": "media",
-            "detalle": (
-                f"Esperá unos días para sembrar {nombre}. "
-                f"Lluvia acumulada en 3 días: {lluvia_3d:.0f} mm. Viento: {viento_hoy:.0f} km/h."
-            ),
-        })
-
-    # --- Cosechar ---
-    if lluvia_3d < cosecha_lluvia and temp_max_hoy < cosecha_temp and viento_hoy < cosecha_viento:
-        recs.append({
-            "accion": "cosechar",
-            "recomendacion": "Sí",
-            "confianza": "alta",
-            "detalle": (
-                f"Buen momento para cosechar tu {nombre}. Ventana de 3 días secos, "
-                f"temperatura máxima de {temp_max_hoy:.0f}°C. La cosecha en seco da mejor calidad."
-            ),
-        })
-    elif lluvia_hoy >= 5:
-        recs.append({
-            "accion": "cosechar",
-            "recomendacion": "No",
-            "confianza": "alta",
-            "detalle": (
-                f"No coseches {nombre} hoy. Lluvia de {lluvia_hoy:.0f} mm. "
-                f"La cosecha con lluvia daña la calidad y favorece hongos en almacenamiento."
-            ),
-        })
-    else:
-        recs.append({
-            "accion": "cosechar",
-            "recomendacion": "Precaución",
-            "confianza": "media",
-            "detalle": (
-                f"Si vas a cosechar tu {nombre}, revisá que no llueva en las próximas 6 horas. "
-                f"Temperatura: {temp_min_hoy:.0f}°C – {temp_max_hoy:.0f}°C."
-            ),
-        })
-
-    return recs
+    ctx = _build_context_agronomico(forecast_hourly, daily, cultivo)
+    return [
+        _recomendar_fumigar(ctx),
+        _recomendar_regar(ctx),
+        _recomendar_sembrar(ctx),
+        _recomendar_cosechar(ctx),
+    ]
 
 
 # --- Mensajes en español chileno claro ---
 
 def _mensaje_helada(cultivo: str, temp: float, hora: str, dia: str, severidad: str) -> str:
-    emoji = "⚠️" if severidad == "media" else "🚨"
+    emoji = "⚠️" if severidad == SEVERIDAD_MEDIA else "🚨"
     return (
         f"{emoji} ALERTA DE HELADA para {cultivo}\n"
         f"Temperatura prevista: {temp:.1f}°C el {dia} a las {hora}.\n"
@@ -445,7 +463,7 @@ def _mensaje_helada(cultivo: str, temp: float, hora: str, dia: str, severidad: s
 
 
 def _mensaje_lluvia(cultivo: str, total: float, dia: str, severidad: str) -> str:
-    emoji = "🌧️" if severidad == "media" else "⛈️"
+    emoji = "🌧️" if severidad == SEVERIDAD_MEDIA else "⛈️"
     return (
         f"{emoji} LLUVIA INTENSA prevista para {cultivo}\n"
         f"Se esperan {total:.0f} mm acumulados el {dia}.\n"
@@ -454,7 +472,7 @@ def _mensaje_lluvia(cultivo: str, total: float, dia: str, severidad: str) -> str
 
 
 def _mensaje_viento(cultivo: str, vel: float, dia: str, severidad: str) -> str:
-    emoji = "💨" if severidad == "media" else "🌪️"
+    emoji = "💨" if severidad == SEVERIDAD_MEDIA else "🌪️"
     return (
         f"{emoji} VIENTO FUERTE previsto para {cultivo}\n"
         f"Ráfagas de hasta {vel:.0f} km/h previstas el {dia}.\n"
@@ -463,7 +481,7 @@ def _mensaje_viento(cultivo: str, vel: float, dia: str, severidad: str) -> str:
 
 
 def _mensaje_granizo(cultivo: str, precip: float, hora: str, dia: str, severidad: str) -> str:
-    emoji = "🌨️" if severidad == "baja" else ("⚠️" if severidad == "media" else "🚨")
+    emoji = "🌨️" if severidad == SEVERIDAD_BAJA else ("⚠️" if severidad == SEVERIDAD_MEDIA else "🚨")
     return (
         f"{emoji} RIESGO DE GRANIZO para {cultivo}\n"
         f"Precipitación intensa de {precip:.1f} mm/h prevista el {dia} a las {hora}.\n"

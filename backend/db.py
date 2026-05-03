@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import sqlite3
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from config import config
+from constants import PLAN_FREE
 
 # ---------------------------------------------------------------------------
 # Import condicional de libsql-experimental (solo necesario en producción)
@@ -305,7 +307,7 @@ async def registrar_usuario(data: dict) -> dict:
     try:
         usuario_id = await db.insert(
             "INSERT INTO usuarios (whatsapp, nombre, plan, token_hash, token_expires_at) VALUES (?, ?, ?, ?, ?)",
-            (data["whatsapp"], data["nombre"], data.get("plan", "free"), token_hash, expires_at),
+            (data["whatsapp"], data["nombre"], data.get("plan", PLAN_FREE), token_hash, expires_at),
         )
 
         parcela_id = await db.insert(
@@ -462,7 +464,7 @@ async def agregar_parcela(usuario_id: int, data: dict) -> int:
     if not usuario:
         raise ValueError("Usuario no encontrado")
 
-    if usuario["plan"] == "free":
+    if usuario["plan"] == PLAN_FREE:
         row = await db.fetchone(
             "SELECT COUNT(*) as n FROM parcelas WHERE usuario_id = ?",
             (usuario_id,),
@@ -549,11 +551,21 @@ async def registrar_alerta(usuario_id: int, tipo: str, mensaje: str) -> None:
 
 
 def _es_integrity_error() -> bool:
-    """Determina si la excepción activa es una violación de unicidad."""
+    """Determina si la excepción activa es una violación de unicidad.
+
+    Prefiere chequeo tipado (sqlite3.IntegrityError). Si libsql-experimental
+    lanza su propio tipo, cae en string matching como fallback limitado.
+    """
     import sys
 
     exc = sys.exc_info()[1]
     if exc is None:
         return False
-    msg = str(exc).lower()
-    return "unique" in msg or "integrity" in msg or "unicidad" in msg
+    if isinstance(exc, sqlite3.IntegrityError):
+        return True
+    # Fallback para libsql-experimental que no hereda de sqlite3.IntegrityError
+    if _HAS_LIBSQL:
+        type_name = type(exc).__name__.lower()
+        if "integrity" in type_name:
+            return True
+    return False

@@ -6,6 +6,13 @@ import re
 import httpx
 
 from config import config
+from constants import (
+    ALERTA_GRANIZO,
+    ALERTA_HELADA,
+    ALERTA_LLUVIA_INTENSA,
+    ALERTA_VIENTO_FUERTE,
+    SEVERIDAD_ALTA,
+)
 
 logger = logging.getLogger("wenuke.whatsapp")
 
@@ -74,9 +81,14 @@ class WhatsAppClient:
 
         lineas = [f"🌱 *Werken-mapu — Alerta para {cultivo}*\n"]
         for a in alertas:
-            iconos = {"helada": "❄️", "lluvia_intensa": "🌧️", "viento_fuerte": "💨", "granizo": "🌨️"}
+            iconos = {
+                ALERTA_HELADA: "❄️",
+                ALERTA_LLUVIA_INTENSA: "🌧️",
+                ALERTA_VIENTO_FUERTE: "💨",
+                ALERTA_GRANIZO: "🌨️",
+            }
             icono = iconos.get(a["tipo"], "⚠️")
-            nivel = "🚨 URGENTE" if a["severidad"] == "alta" else "⚠️ Precaución"
+            nivel = "🚨 URGENTE" if a["severidad"] == SEVERIDAD_ALTA else "⚠️ Precaución"
             lineas.append(f"{icono} *{a['tipo'].replace('_', ' ').title()}* — {nivel}")
             lineas.append(f"   {a['dia']}")
             lineas.append(f"   {a['mensaje'][:200]}")
