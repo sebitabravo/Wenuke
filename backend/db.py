@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 from config import config
@@ -198,7 +198,7 @@ def _hash_token(token: str) -> str:
 
 def _token_expires_at(days: int | None = None) -> str:
     dias = days if days is not None else config.token_expiry_days
-    return (datetime.now(timezone.utc) + timedelta(days=dias)).isoformat()
+    return (datetime.now(datetime.UTC) + timedelta(days=dias)).isoformat()
 
 
 # ======================================================================
