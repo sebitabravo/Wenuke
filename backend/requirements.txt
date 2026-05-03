@@ -6,7 +6,7 @@ groq>=0.15.0,<0.16.0
 
 # Base de datos — dual backend: SQLite local + Turso serverless
 aiosqlite>=0.20.0
-libsql-experimental>=0.4.0
+libsql-experimental>=0.0.40
 
 # Dev / tests
 pytest>=8.0
