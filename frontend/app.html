@@ -2,9 +2,13 @@
 <html lang="es-CL">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Probá Werken-mapu gratis — el asistente climático por WhatsApp para agricultores. Consultá clima, recibí recomendaciones de fumigación y siembra, y chateá con la IA.">
+  <meta name="ai-summary" content="Demo interactiva de Werken-mapu: asistente climático agrícola por WhatsApp. Permite probar consultas de clima, recomendaciones de cultivo y chat con IA sin registrarse.">
+  <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#075e54">
-  <title>Werken-mapu — Demo</title>
+  <title>Probar Werken-mapu gratis — Asistente climático IA para agricultores</title>
+  <link rel="canonical" href="https://frontend-lac-eight-97.vercel.app/app">
   <script>
     // API URL — automático según entorno
     window.API_BASE = window.location.hostname === 'localhost'
@@ -14,6 +18,23 @@
           : 'https://backend-beryl-nu-18.vercel.app');
   </script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
+
+  <meta property="og:title" content="Probar Werken-mapu — Asistente climático IA para agricultores">
+  <meta property="og:description" content="Consultá el clima de tu parcela, recibí recomendaciones de fumigación, riego y cosecha, y chateá con la IA. Sin registrarte.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://frontend-lac-eight-97.vercel.app/app">
+  <meta property="og:image" content="https://raw.githubusercontent.com/sebitabravo/Wenuke/main/docs/screenshots/prod-landing.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Demo de Werken-mapu — Chat de WhatsApp con alerta de helada y recomendaciones">
+  <meta property="og:locale" content="es_CL">
+  <meta property="og:site_name" content="Werken-mapu">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Probar Werken-mapu — Asistente climático IA para agricultores">
+  <meta name="twitter:description" content="Consultá el clima de tu parcela y chateá con la IA. Sin registrarte.">
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/sebitabravo/Wenuke/main/docs/screenshots/prod-landing.png">
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -51,11 +72,14 @@
     .map-overlay { transition: all 0.3s ease; }
     .cultivo-active { transform: scale(1.05); }
     /* Scrollbar */
-    #chat-scroll::-webkit-scrollbar { width: 6px; }
-    #chat-scroll::-webkit-scrollbar-thumb { background: #c4c4c4; border-radius: 3px; }
+    #main-chat::-webkit-scrollbar { width: 6px; }
+    #main-chat::-webkit-scrollbar-thumb { background: #c4c4c4; border-radius: 3px; }
   </style>
 </head>
-<body class="h-dvh flex flex-col bg-gray-100 antialiased select-none">
+<body class="h-dvh flex flex-col bg-gray-100 antialiased">
+
+  <!-- Skip to main content -->
+  <a href="#main-chat" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-wa-dark focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:outline-none focus:ring-2 focus:ring-wa-light">Saltar al chat</a>
 
   <!-- ==================== HEADER ==================== -->
   <header class="flex-shrink-0 bg-wa-dark px-4 py-3 flex items-center justify-between shadow-md z-20">
@@ -64,15 +88,15 @@
       <div class="text-white">
         <h1 class="text-base font-semibold leading-tight">Werken-mapu</h1>
         <p class="text-xs text-green-200 flex items-center gap-1">
-          <span class="w-1.5 h-1.5 rounded-full" id="status-dot"></span>
-          <span id="header-status">Conectando...</span>
+          <span class="w-1.5 h-1.5 rounded-full" id="status-dot" aria-hidden="true"></span>
+          <span id="header-status" role="status" aria-live="polite">Conectando...</span>
         </p>
       </div>
     </div>
     <div class="flex items-center gap-1">
-      <a href="index.html" class="text-xs text-white/60 hover:text-white transition-colors mr-2" title="Ir al inicio">← Inicio</a>
-      <button onclick="toggleMapa()" class="w-9 h-9 rounded-full flex items-center justify-center text-white/80 hover:bg-white/10 transition-colors" title="Ubicación">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+      <a href="index.html" class="text-xs text-white/60 hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors mr-2 rounded" title="Ir al inicio" data-testid="app-link-inicio">← Inicio</a>
+      <button onclick="toggleMapa()" class="w-9 h-9 rounded-full flex items-center justify-center text-white/80 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-wa-light transition-colors" aria-label="Abrir mapa de ubicación" title="Ubicación" data-testid="app-btn-ubicacion">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
           <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
         </svg>
@@ -81,7 +105,7 @@
   </header>
 
   <!-- ==================== MAP OVERLAY ==================== -->
-  <div id="mapa-overlay" class="map-overlay hidden flex-shrink-0 bg-white border-b-4 border-wa-light shadow-inner">
+  <div id="mapa-overlay" class="map-overlay hidden flex-shrink-0 bg-white border-b-4 border-wa-light shadow-inner" role="dialog" aria-label="Mapa de ubicación" data-testid="app-mapa-overlay">
     <div class="relative">
       <div id="mapa" class="w-full" style="height: 280px;"></div>
       <div class="absolute top-2 right-2 z-[1000] bg-white rounded-lg shadow-md px-3 py-1.5 text-xs font-mono text-gray-700 border border-gray-200">
@@ -90,25 +114,25 @@
     </div>
     <div class="px-4 py-3 flex items-center gap-2 bg-gray-50 border-t">
       <div class="flex items-center gap-2 flex-1">
-        <input id="lat-input" type="number" step="0.0001" min="-90" max="90" placeholder="Lat" class="w-24 text-xs px-2.5 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent font-mono">
-        <input id="lon-input" type="number" step="0.0001" min="-180" max="180" placeholder="Lon" class="w-24 text-xs px-2.5 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent font-mono">
+        <input id="lat-input" type="number" step="0.0001" min="-90" max="90" placeholder="Lat" aria-label="Latitud" class="w-24 text-xs px-2.5 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent font-mono" data-testid="app-input-lat">
+        <input id="lon-input" type="number" step="0.0001" min="-180" max="180" placeholder="Lon" aria-label="Longitud" class="w-24 text-xs px-2.5 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent font-mono" data-testid="app-input-lon">
       </div>
-      <button onclick="toggleMapa()" class="text-xs bg-wa-medium text-white px-4 py-2 rounded-lg font-medium hover:bg-wa-dark transition-colors">Listo</button>
+      <button onclick="toggleMapa()" class="text-xs bg-wa-medium text-white px-4 py-2 rounded-lg font-medium hover:bg-wa-dark transition-colors" data-testid="app-btn-mapa-listo">Listo</button>
     </div>
   </div>
 
   <!-- ==================== CROP SELECTOR ==================== -->
   <div class="flex-shrink-0 bg-white px-4 py-2.5 border-b border-gray-200 flex items-center gap-2 overflow-x-auto">
-    <span class="text-xs text-gray-400 font-medium whitespace-nowrap">Cultivo:</span>
-    <button data-cultivo="general" class="cultivo-btn flex-shrink-0 bg-wa-medium text-white rounded-full px-4 py-1.5 text-sm font-medium transition-all hover:opacity-90 active:scale-95">🌱 General</button>
-    <button data-cultivo="papa" class="cultivo-btn flex-shrink-0 bg-white text-gray-600 border border-gray-200 rounded-full px-4 py-1.5 text-sm font-medium transition-all hover:border-wa-light hover:text-wa-medium active:scale-95">🥔 Papa</button>
-    <button data-cultivo="trigo" class="cultivo-btn flex-shrink-0 bg-white text-gray-600 border border-gray-200 rounded-full px-4 py-1.5 text-sm font-medium transition-all hover:border-wa-light hover:text-wa-medium active:scale-95">🌾 Trigo</button>
-    <button data-cultivo="manzano" class="cultivo-btn flex-shrink-0 bg-white text-gray-600 border border-gray-200 rounded-full px-4 py-1.5 text-sm font-medium transition-all hover:border-wa-light hover:text-wa-medium active:scale-95">🍎 Manzano</button>
+    <span class="text-xs text-gray-500 font-medium whitespace-nowrap">Cultivo:</span>
+    <button data-cultivo="general" aria-pressed="true" class="cultivo-btn flex-shrink-0 bg-wa-medium text-white rounded-full px-4 py-1.5 text-sm font-medium transition-all hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-wa-light active:scale-95" data-testid="app-cultivo-general">🌱 General</button>
+    <button data-cultivo="papa" aria-pressed="false" class="cultivo-btn flex-shrink-0 bg-white text-gray-600 border border-gray-200 rounded-full px-4 py-1.5 text-sm font-medium transition-all hover:border-wa-light hover:text-wa-medium focus:outline-none focus:ring-2 focus:ring-wa-light active:scale-95" data-testid="app-cultivo-papa">🥔 Papa</button>
+    <button data-cultivo="trigo" aria-pressed="false" class="cultivo-btn flex-shrink-0 bg-white text-gray-600 border border-gray-200 rounded-full px-4 py-1.5 text-sm font-medium transition-all hover:border-wa-light hover:text-wa-medium focus:outline-none focus:ring-2 focus:ring-wa-light active:scale-95" data-testid="app-cultivo-trigo">🌾 Trigo</button>
+    <button data-cultivo="manzano" aria-pressed="false" class="cultivo-btn flex-shrink-0 bg-white text-gray-600 border border-gray-200 rounded-full px-4 py-1.5 text-sm font-medium transition-all hover:border-wa-light hover:text-wa-medium focus:outline-none focus:ring-2 focus:ring-wa-light active:scale-95" data-testid="app-cultivo-manzano">🍎 Manzano</button>
   </div>
 
   <!-- ==================== CHAT AREA ==================== -->
-  <main id="chat-scroll" class="flex-1 overflow-y-auto bg-chat px-3 py-3">
-    <div id="chat-mensajes" class="max-w-2xl mx-auto">
+  <main id="main-chat" class="flex-1 overflow-y-auto bg-chat px-3 py-3" aria-label="Chat con Werken-mapu">
+    <div id="chat-mensajes" class="max-w-2xl mx-auto" role="log" aria-live="polite" aria-atomic="false">
 
       <!-- Welcome -->
       <div class="msg-enter flex gap-2 mb-3">
@@ -116,7 +140,7 @@
         <div class="bg-white rounded-lg rounded-bl-none px-4 py-3 max-w-[80%] shadow-sm border border-gray-100">
           <p class="text-sm text-gray-800 font-medium mb-1">¡Hola! Soy <span class="text-wa-dark">Werken-mapu</span> 👋</p>
           <p class="text-sm text-gray-600">Tu asistente climático para el campo de La Araucanía. Decime qué cultivo tenés y preguntame lo que necesités.</p>
-          <p class="text-xs text-gray-400 mt-2">📍 Tocá el ícono de ubicación para marcar tu parcela</p>
+          <p class="text-xs text-gray-500 mt-2">📍 Tocá el ícono de ubicación para marcar tu parcela</p>
         </div>
       </div>
 
@@ -126,26 +150,27 @@
   <!-- ==================== QUICK QUESTIONS ==================== -->
   <div class="flex-shrink-0 bg-wa-panel px-3 py-2 border-t border-gray-200 overflow-x-auto">
     <div class="flex gap-1.5 max-w-2xl mx-auto">
-      <button onclick="enviarEjemplo('¿Llueve mañana?')" class="ejemplo-btn flex-shrink-0 text-xs bg-white text-gray-600 rounded-full px-3 py-1.5 border border-gray-200 hover:bg-wa-light hover:text-white hover:border-wa-light transition-all active:scale-95">💧 ¿Llueve mañana?</button>
-      <button onclick="enviarEjemplo('¿Puedo fumigar hoy?')" class="ejemplo-btn flex-shrink-0 text-xs bg-white text-gray-600 rounded-full px-3 py-1.5 border border-gray-200 hover:bg-wa-light hover:text-white hover:border-wa-light transition-all active:scale-95">🧪 ¿Puedo fumigar?</button>
-      <button onclick="enviarEjemplo('¿Hay riesgo de helada?')" class="ejemplo-btn flex-shrink-0 text-xs bg-white text-gray-600 rounded-full px-3 py-1.5 border border-gray-200 hover:bg-wa-light hover:text-white hover:border-wa-light transition-all active:scale-95">❄️ ¿Riesgo de helada?</button>
-      <button onclick="enviarEjemplo('¿Es buen momento para cosechar?')" class="ejemplo-btn flex-shrink-0 text-xs bg-white text-gray-600 rounded-full px-3 py-1.5 border border-gray-200 hover:bg-wa-light hover:text-white hover:border-wa-light transition-all active:scale-95">🌽 ¿Cuándo cosechar?</button>
+      <button onclick="enviarEjemplo('¿Llueve mañana?')" class="ejemplo-btn flex-shrink-0 text-xs bg-white text-gray-600 rounded-full px-3 py-1.5 border border-gray-200 hover:bg-wa-light hover:text-white hover:border-wa-light focus:outline-none focus:ring-2 focus:ring-wa-light transition-all active:scale-95" data-testid="app-pregunta-lluvia">💧 ¿Llueve mañana?</button>
+      <button onclick="enviarEjemplo('¿Puedo fumigar hoy?')" class="ejemplo-btn flex-shrink-0 text-xs bg-white text-gray-600 rounded-full px-3 py-1.5 border border-gray-200 hover:bg-wa-light hover:text-white hover:border-wa-light focus:outline-none focus:ring-2 focus:ring-wa-light transition-all active:scale-95" data-testid="app-pregunta-fumigar">🧪 ¿Puedo fumigar?</button>
+      <button onclick="enviarEjemplo('¿Hay riesgo de helada?')" class="ejemplo-btn flex-shrink-0 text-xs bg-white text-gray-600 rounded-full px-3 py-1.5 border border-gray-200 hover:bg-wa-light hover:text-white hover:border-wa-light focus:outline-none focus:ring-2 focus:ring-wa-light transition-all active:scale-95" data-testid="app-pregunta-helada">❄️ ¿Riesgo de helada?</button>
+      <button onclick="enviarEjemplo('¿Es buen momento para cosechar?')" class="ejemplo-btn flex-shrink-0 text-xs bg-white text-gray-600 rounded-full px-3 py-1.5 border border-gray-200 hover:bg-wa-light hover:text-white hover:border-wa-light focus:outline-none focus:ring-2 focus:ring-wa-light transition-all active:scale-95" data-testid="app-pregunta-cosechar">🌽 ¿Cuándo cosechar?</button>
     </div>
   </div>
 
   <!-- ==================== INPUT AREA ==================== -->
   <div class="flex-shrink-0 bg-wa-panel px-3 py-2.5 border-t border-gray-200 shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
     <div class="flex items-end gap-2 max-w-2xl mx-auto">
-      <button onclick="consultarClima()" class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors active:scale-95" title="Consultar clima">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+      <button onclick="consultarClima()" class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-wa-light transition-colors active:scale-95" aria-label="Consultar clima" title="Consultar clima" data-testid="app-btn-clima">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
         </svg>
       </button>
+      <label for="pregunta-input" class="sr-only">Escribí tu consulta</label>
       <textarea id="pregunta-input" rows="1" maxlength="500" placeholder="Escribí tu consulta..."
         class="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent placeholder-gray-400 bg-white shadow-sm"
-        style="min-height:2.75rem;max-height:6rem;"></textarea>
-      <button id="btn-enviar" onclick="enviarPregunta()" class="flex-shrink-0 w-10 h-10 bg-wa-light rounded-full flex items-center justify-center hover:bg-wa-medium transition-colors shadow-md active:scale-95">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-white">
+        style="min-height:2.75rem;max-height:6rem;" data-testid="app-textarea-pregunta"></textarea>
+      <button id="btn-enviar" onclick="enviarPregunta()" aria-label="Enviar mensaje" class="flex-shrink-0 w-10 h-10 bg-wa-light rounded-full flex items-center justify-center hover:bg-wa-medium focus:outline-none focus:ring-2 focus:ring-white transition-colors shadow-md active:scale-95" data-testid="app-btn-enviar">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-white" aria-hidden="true">
           <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
         </svg>
       </button>

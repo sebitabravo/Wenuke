@@ -1,0 +1,124 @@
+# Werken-mapu — El mensajero de la tierra
+
+> Asistente climático agrícola por WhatsApp para pequeños agricultores de La Araucanía, Chile.
+> Alertas anticipadas, recomendaciones por cultivo e IA conversacional. Sin apps, sin sensores.
+
+[![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://frontend-lac-eight-97.vercel.app)
+[![API](https://img.shields.io/badge/API-live-blue)](https://backend-beryl-nu-18.vercel.app)
+[![CI](https://github.com/sebitabravo/Wenuke/actions/workflows/test.yml/badge.svg)](https://github.com/sebitabravo/Wenuke/actions/workflows/test.yml)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-teal)](https://fastapi.tiangolo.com)
+
+## Demo
+
+| Entorno | URL |
+|---|---|
+| Landing | [frontend-lac-eight-97.vercel.app](https://frontend-lac-eight-97.vercel.app) |
+| Chat demo | [frontend-lac-eight-97.vercel.app/app](https://frontend-lac-eight-97.vercel.app/app) |
+| API docs | [backend-beryl-nu-18.vercel.app/docs](https://backend-beryl-nu-18.vercel.app/docs) |
+
+## El problema
+
+Pequeños agricultores pierden hasta el **30% de su producción anual** por decidir con pronósticos climáticos genéricos hechos para ciudades, no para sus parcelas. Una helada sin aviso destruye meses de trabajo en una noche.
+
+## La solución
+
+Werken-mapu ("mensajero de la tierra" en mapudungún) llega donde el agricultor ya está: **WhatsApp**. Comparte ubicación, elige cultivos, recibe alertas y recomendaciones accionables. Sin instalar nada.
+
+**Costo operativo: $0-10 USD/mes.** Sin APIs pagas obligatorias.
+
+## Stack
+
+| Capa | Tecnología |
+|---|---|
+| API | FastAPI (Python 3.12) |
+| BD | Turso + aiosqlite (dual serverless/local) |
+| Clima | OpenMeteo (gratis, sin API key) |
+| IA | Groq Llama 3.1 70B + fallback offline |
+| Mapas | Leaflet + OpenStreetMap |
+| Frontend | HTML5 + Tailwind CSS + Vanilla JS |
+| Infra | Vercel (Static + Serverless) |
+| CI/CD | GitHub Actions: ruff + mypy + pytest |
+
+## Características principales
+
+- **Alertas anticipadas 48-72 horas**: Helada, lluvia intensa, viento fuerte y granizo. Personalizadas por cultivo y ubicación exacta.
+- **Recomendaciones diarias**: ¿Conviene fumigar hoy? ¿Regar? ¿Sembrar? ¿Cosechar? Respuestas concretas basadas en datos reales.
+- **Asistente conversacional 24/7**: Preguntale en español natural. Te responde con datos de tu parcela, sin tecnicismos.
+- **Precios de mercado ODEPA**: Valor de referencia actualizado para decidir cuándo vender.
+- **Historial climático 5-10 años**: Datos históricos para planificar rotación de cultivos y predecir tendencias.
+
+## Planes
+
+### Plan Libre — $0 para siempre
+- Alertas de helada, lluvia intensa, viento fuerte y granizo
+- Pronóstico 7 días por ubicación GPS
+- 1 parcela
+- Acceso por WhatsApp y web
+
+### Plan Premium — $3.000 CLP/mes (~$3 USD)
+- Todo lo del plan libre
+- Hasta 10 parcelas
+- Recomendaciones personalizadas: fumigar, regar, sembrar, cosechar
+- Asistente IA conversacional 24/7
+- Precios de mercado ODEPA
+- Historial climático 5-10 años
+- Calendario de rotación de cultivos
+
+### B2B — Cooperativas y PRODESAL
+- $1.500 CLP/mes por agricultor (100-500 afiliados)
+- Administración centralizada
+- Reportes de uso
+
+## API Endpoints
+
+| Método | Ruta | Auth | Descripción |
+|---|---|---|---|
+| `GET` | `/` | — | Health check (servicio, versión, estado, modo offline) |
+| `GET` | `/clima` | — | Pronóstico 7 días + alertas por cultivo y coordenadas |
+| `POST` | `/preguntar` | — | Asistente IA conversacional con contexto climático real |
+| `GET` | `/recomendaciones` | — | Recomendaciones diarias: fumigar, regar, sembrar, cosechar |
+| `GET` | `/historico` | — | Datos climáticos históricos 1-10 años (OpenMeteo Archive) |
+| `GET` | `/precios` | — | Precios mayoristas de referencia por producto |
+| `POST` | `/registrar` | — | Alta de agricultor — retorna token de autenticación |
+| `GET` | `/parcelas` | Bearer | Listar parcelas del usuario autenticado |
+| `POST` | `/parcelas` | Bearer | Agregar parcela nueva (validación plan free/premium) |
+| `DELETE` | `/parcelas/{id}` | Bearer | Eliminar parcela (valida ownership) |
+| `GET` | `/plan` | Bearer | Ver plan actual y uso de parcelas |
+| `POST` | `/plan` | Bearer | Cambiar plan (free ↔ premium) |
+| `POST` | `/refresh-token` | Bearer | Rotar token de autenticación |
+| `POST` | `/enviar-alertas` | Admin Bearer | Dispatch manual de alertas vía WhatsApp |
+
+## Documentación
+
+| Recurso | Qué encontrás |
+|---|---|
+| [Arquitectura](docs/ARCHITECTURE.md) | Diagrama, estructura del proyecto, decisiones técnicas, tests |
+| [API](docs/API.md) | Endpoints, autenticación, modelo de datos, planes |
+| [Setup local](docs/SETUP.md) | Cómo levantar el proyecto, variables de entorno, Docker |
+| [Contribuir](CONTRIBUTING.md) | Convenciones de commit, estilo de código, cómo reportar bugs |
+| [Design system](DESIGN.md) | Paleta WhatsApp-inspired, componentes, estándar Stitch |
+| [Pitch deck](docs/pitch.pdf) | Presentación de la hackathon |
+
+## Modelo de datos
+
+```
+usuarios ──< parcelas ──< cultivos
+    │
+    └──< alertas_enviadas (auditoría)
+```
+
+- **usuarios:** id, whatsapp (UNIQUE), nombre, plan (free|premium), token (UNIQUE)
+- **parcelas:** id, usuario_id (FK), nombre, lat, lon
+- **cultivos:** id, parcela_id (FK), tipo (papa|trigo|manzano|general)
+- **alertas_enviadas:** id, usuario_id (FK), tipo, mensaje, timestamp
+
+## Autenticación
+
+- **Usuarios:** `Authorization: Bearer <token>` — token generado en `/registrar`, almacenado como hash SHA-256 en BD. Expira a los 90 días. Usar `/refresh-token` para rotar.
+- **Admin:** `Authorization: Bearer <admin_token>` — configurado via `ADMIN_TOKEN` env var. Sin valor configurado (mínimo 16 caracteres), el endpoint retorna 501.
+
+## Licencia
+
+MIT © 2026 Werken-mapu

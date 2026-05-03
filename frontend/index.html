@@ -3,10 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Werken-mapu — Asistente climático para pequeños agricultores de La Araucanía. Alertas anticipadas, recomendaciones diarias y asistente IA por WhatsApp.">
+  <meta name="description" content="Asistente climático por WhatsApp para pequeños agricultores. Alertas de heladas, lluvias y granizo 72h antes. Recomendaciones diarias por cultivo. Sin apps, sin sensores. Plan libre gratuito.">
+  <meta name="ai-summary" content="Werken-mapu es un asistente climático agrícola que envía alertas de heladas, lluvias intensas, viento fuerte y granizo por WhatsApp a pequeños agricultores de La Araucanía, Chile, usando datos hiperlocales por coordenadas GPS con 72 horas de anticipación. Incluye recomendaciones diarias de fumigación, riego, siembra y cosecha específicas por cultivo, asistente IA conversacional 24/7, y precios de mercado ODEPA. Sin instalar apps.">
+  <meta name="robots" content="index, follow, max-image-preview:large">
   <meta name="theme-color" content="#075e54">
-  <title>Werken-mapu — El mensajero de la tierra</title>
+  <title>¿Heladas que arruinan tu cosecha? Werken-mapu te avisa 72h antes por WhatsApp</title>
+  <link rel="canonical" href="https://frontend-lac-eight-97.vercel.app">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
+
+  <meta property="og:title" content="Werken-mapu — Alertas climáticas por WhatsApp para tu parcela">
+  <meta property="og:description" content="Asistente climático por WhatsApp para pequeños agricultores. Alertas de heladas, lluvias y granizo 72h antes. Recomendaciones por cultivo. Sin apps. Plan libre gratuito.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://frontend-lac-eight-97.vercel.app">
+  <meta property="og:image" content="https://raw.githubusercontent.com/sebitabravo/Wenuke/main/docs/screenshots/prod-landing.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Werken-mapu — Chat de WhatsApp mostrando alerta de helada para cultivo de papa">
+  <meta property="og:locale" content="es_CL">
+  <meta property="og:site_name" content="Werken-mapu">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Werken-mapu — Alertas climáticas por WhatsApp para tu parcela">
+  <meta name="twitter:description" content="Alertas de heladas, lluvias y granizo 72h antes. Recomendaciones por cultivo. Sin apps. Plan libre gratuito.">
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/sebitabravo/Wenuke/main/docs/screenshots/prod-landing.png">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -60,21 +80,148 @@
     .delay-2 { animation-delay: 0.2s; opacity: 0; }
     .delay-3 { animation-delay: 0.3s; opacity: 0; }
   </style>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Werken-mapu",
+    "alternateName": "El mensajero de la tierra",
+    "description": "Asistente climático agrícola por WhatsApp para pequeños agricultores. Alertas de heladas, lluvias y granizo con 72 horas de anticipación usando datos hiperlocales por GPS. Recomendaciones diarias de fumigación, riego, siembra y cosecha específicas por cultivo (papa, trigo, manzano). Incluye asistente IA conversacional 24/7 y precios de mercado ODEPA.",
+    "applicationCategory": "LifestyleApplication",
+    "operatingSystem": "WhatsApp, Web",
+    "url": "https://frontend-lac-eight-97.vercel.app",
+    "image": "https://raw.githubusercontent.com/sebitabravo/Wenuke/main/docs/screenshots/prod-landing.png",
+    "author": {
+      "@type": "Organization",
+      "name": "Werken-mapu",
+      "url": "https://frontend-lac-eight-97.vercel.app",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "Sales",
+        "email": "contacto@werkenmapu.cl",
+        "availableLanguage": ["Spanish"]
+      },
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Temuco",
+        "addressRegion": "La Araucanía",
+        "addressCountry": "CL"
+      }
+    },
+    "offers": [
+      {
+        "@type": "Offer",
+        "name": "Plan Libre",
+        "price": "0",
+        "priceCurrency": "CLP",
+        "description": "Alertas básicas de helada, lluvia y viento. 1 parcela. Pronóstico a 7 días. Acceso por WhatsApp y web."
+      },
+      {
+        "@type": "Offer",
+        "name": "Plan Premium",
+        "price": "3000",
+        "priceCurrency": "CLP",
+        "description": "Múltiples parcelas, alertas personalizadas por cultivo, asistente IA 24/7, recomendaciones de fumigación/riego/siembra/cosecha, precios ODEPA, historial climático 5-10 años."
+      }
+    ],
+    "browserRequirements": "Funciona en WhatsApp — no requiere instalar ninguna aplicación",
+    "featureList": [
+      "Alertas de heladas, lluvia intensa, viento fuerte y granizo con 72h de anticipación",
+      "Recomendaciones diarias: fumigar, regar, sembrar, cosechar",
+      "Asistente IA conversacional 24/7 con datos climáticos reales",
+      "Datos hiperlocales por coordenadas GPS de la parcela",
+      "Precios de mercado mayorista ODEPA",
+      "Historial climático 5-10 años",
+      "Sin APIs pagas — costo operativo $0-10 USD/mes"
+    ]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Werken-mapu",
+    "alternateName": "El mensajero de la tierra",
+    "url": "https://frontend-lac-eight-97.vercel.app",
+    "description": "Asistente climático agrícola por WhatsApp para pequeños agricultores de La Araucanía, Chile.",
+    "inLanguage": "es-CL",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://frontend-lac-eight-97.vercel.app/app?q={search_term_string}"
+      },
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "¿Qué es Werken-mapu y cómo funciona?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Werken-mapu —'mensajero de la tierra' en mapudungún— es un asistente climático agrícola que funciona por WhatsApp. El agricultor comparte la ubicación GPS de su parcela, elige sus cultivos (papa, trigo, manzano), y recibe alertas automáticas de heladas, lluvias intensas, viento fuerte y granizo con 72 horas de anticipación. También puede preguntarle en español natural si conviene fumigar, regar, sembrar o cosechar, y el asistente IA le responde con datos reales de su ubicación exacta."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "¿Necesito instalar una app para usar Werken-mapu?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. Werken-mapu funciona completamente por WhatsApp. No hay que descargar ninguna aplicación, crear una cuenta con contraseña ni instalar sensores en la parcela. Solo necesitás un teléfono con WhatsApp — que ya tenés — y compartir tu ubicación."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "¿Cuánto cuesta Werken-mapu?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "El Plan Libre es gratuito para siempre e incluye alertas básicas de helada, lluvia y viento, 1 parcela y pronóstico a 7 días. El Plan Premium cuesta $3.000 CLP por mes (aproximadamente $3 USD) e incluye múltiples parcelas, recomendaciones personalizadas por cultivo, asistente IA conversacional 24/7, precios de mercado ODEPA e historial climático de 5-10 años. También hay paquetes B2B para cooperativas y PRODESAL a $1.500 CLP por agricultor al mes."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "¿Qué tan precisa es la información climática de Werken-mapu?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Werken-mapu usa datos del modelo meteorológico global OpenMeteo con resolución de ~11 km, combinados con las coordenadas GPS exactas de la parcela del agricultor. Esto es significativamente más preciso que el pronóstico genérico de la televisión o las apps de clima estándar, que usan datos de la ciudad más cercana. Las alertas llegan con 48 a 72 horas de anticipación. Para recomendaciones agrícolas específicas (fumigar, regar, sembrar), usa IA (Llama 3.1 70B) que interpreta los datos climáticos en contexto del cultivo elegido."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "¿Puedo usar Werken-mapu si tengo varios cultivos o más de una parcela?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sí. En el Plan Premium podés registrar hasta 10 parcelas distintas, cada una con sus propios cultivos (papa, trigo, manzano) y recibir alertas y recomendaciones independientes para cada una. El Plan Libre permite 1 parcela. Las alertas se personalizan según el tipo de cultivo y su etapa fenológica — una helada afecta distinto a la papa en floración que al trigo recién sembrado."
+        }
+      }
+    ]
+  }
+  </script>
 </head>
 <body class="bg-white text-gray-800 antialiased">
 
+<!-- Skip to main content -->
+<a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-wa-dark focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:outline-none focus:ring-2 focus:ring-wa-light">Saltar al contenido principal</a>
+
 <!-- ==================== HERO ==================== -->
 <header class="hero-pattern text-white relative wave-divider">
-  <nav class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+  <nav class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between" aria-label="Navegación principal" role="navigation">
     <div class="flex items-center gap-2">
-      <span class="text-2xl">🌱</span>
+      <span class="text-2xl" aria-hidden="true">🌱</span>
       <span class="font-bold text-lg">Werken-mapu</span>
     </div>
     <div class="hidden md:flex items-center gap-6 text-sm font-medium text-white/80">
-      <a href="#como-funciona" class="hover:text-white transition-colors">Cómo funciona</a>
-      <a href="#planes" class="hover:text-white transition-colors">Planes</a>
-      <a href="#contacto" class="hover:text-white transition-colors">Contacto</a>
-      <a href="app.html" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-full transition-colors text-white">Probar Demo</a>
+      <a href="#como-funciona" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="nav-link-como-funciona">Cómo funciona</a>
+      <a href="#planes" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="nav-link-planes">Planes</a>
+      <a href="#contacto" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="nav-link-contacto">Contacto</a>
+      <a href="app.html" class="bg-white/20 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-wa-light px-4 py-2 rounded-full transition-colors text-white" data-testid="nav-btn-probar-demo">Probar Demo</a>
     </div>
   </nav>
 
@@ -90,10 +237,10 @@
         Sin apps, sin sensores. Solo información a tiempo para tu parcela.
       </p>
       <div class="flex flex-col sm:flex-row gap-3">
-        <a href="#contacto" class="bg-wa-light hover:bg-green-600 text-white font-semibold px-8 py-3.5 rounded-full text-center transition-colors shadow-lg shadow-green-900/30">
+        <a href="#contacto" class="bg-wa-light hover:bg-green-600 text-white font-semibold px-8 py-3.5 rounded-full text-center transition-colors shadow-lg shadow-green-900/30" data-testid="hero-btn-comenzar-gratis">
           Comenzar gratis
         </a>
-        <a href="#como-funciona" class="border-2 border-white/30 hover:border-white/60 text-white font-semibold px-8 py-3.5 rounded-full text-center transition-colors">
+        <a href="#como-funciona" class="border-2 border-white/30 hover:border-white/60 text-white font-semibold px-8 py-3.5 rounded-full text-center transition-colors" data-testid="hero-btn-como-funciona">
           Cómo funciona
         </a>
       </div>
@@ -258,6 +405,7 @@
 </div>
 </header>
 
+<main id="main-content">
 <!-- ==================== PROBLEM ==================== -->
 <section class="bg-white py-16 md:py-20">
   <div class="max-w-6xl mx-auto px-4">
@@ -372,7 +520,7 @@
 </section>
 
 <!-- ==================== WORKFLOW ==================== -->
-<section id="como-funciona" class="bg-white py-16 md:py-20">
+<section id="como-funciona" class="bg-white py-16 md:py-20" aria-label="Cómo funciona">
   <div class="max-w-6xl mx-auto px-4">
     <div class="text-center mb-14">
       <p class="text-wa-medium font-semibold text-sm tracking-wider uppercase mb-2">Workflow</p>
@@ -428,7 +576,7 @@
         <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-wa-dark text-white text-sm font-bold px-4 py-1.5 rounded-full">Plan Libre</div>
         <div class="text-center mt-4 mb-6">
           <p class="text-5xl font-extrabold text-gray-900">$0</p>
-          <p class="text-gray-400 text-sm mt-1">para siempre</p>
+          <p class="text-gray-500 text-sm mt-1">para siempre</p>
         </div>
         <ul class="space-y-3 mb-8">
           <li class="flex items-center gap-2 text-sm">
@@ -443,20 +591,20 @@
           <li class="flex items-center gap-2 text-sm">
             <span class="text-wa-light font-bold">✓</span> Acceso por WhatsApp y web
           </li>
-          <li class="flex items-center gap-2 text-sm text-gray-300">
-            <span class="text-gray-300">✗</span> Recomendaciones personalizadas por cultivo
+          <li class="flex items-center gap-2 text-sm text-gray-500">
+            <span class="text-gray-400" aria-hidden="true">✗</span> Recomendaciones personalizadas por cultivo
           </li>
-          <li class="flex items-center gap-2 text-sm text-gray-300">
-            <span class="text-gray-300">✗</span> Asistente IA conversacional 24/7
+          <li class="flex items-center gap-2 text-sm text-gray-500">
+            <span class="text-gray-400" aria-hidden="true">✗</span> Asistente IA conversacional 24/7
           </li>
-          <li class="flex items-center gap-2 text-sm text-gray-300">
-            <span class="text-gray-300">✗</span> Precios de mercado ODEPA
+          <li class="flex items-center gap-2 text-sm text-gray-500">
+            <span class="text-gray-400" aria-hidden="true">✗</span> Precios de mercado ODEPA
           </li>
-          <li class="flex items-center gap-2 text-sm text-gray-300">
-            <span class="text-gray-300">✗</span> Historial climático de tu zona
+          <li class="flex items-center gap-2 text-sm text-gray-500">
+            <span class="text-gray-400" aria-hidden="true">✗</span> Historial climático de tu zona
           </li>
         </ul>
-        <a href="#contacto" class="block text-center border-2 border-wa-light text-wa-medium hover:bg-wa-light hover:text-white font-semibold px-6 py-3 rounded-full transition-colors">
+        <a href="#contacto" class="block text-center border-2 border-wa-light text-wa-medium hover:bg-wa-light hover:text-white font-semibold px-6 py-3 rounded-full transition-colors" data-testid="pricing-card-free-cta">
           Empezar gratis
         </a>
       </div>
@@ -494,7 +642,7 @@
             <span class="text-wa-light font-bold">✓</span> Calendario de rotación de cultivos
           </li>
         </ul>
-        <a href="#contacto" class="block text-center bg-wa-light hover:bg-green-600 text-white font-semibold px-6 py-3 rounded-full transition-colors shadow-lg shadow-green-900/20">
+        <a href="#contacto" class="block text-center bg-wa-light hover:bg-green-600 text-white font-semibold px-6 py-3 rounded-full transition-colors shadow-lg shadow-green-900/20" data-testid="pricing-card-premium-cta">
           Quiero Premium
         </a>
       </div>
@@ -510,7 +658,7 @@
             Mismo beneficio premium, administración centralizada, reportes de uso.
           </p>
         </div>
-        <a href="#contacto" class="flex-shrink-0 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-6 py-3 rounded-full transition-colors text-sm">
+        <a href="#contacto" class="flex-shrink-0 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-6 py-3 rounded-full transition-colors text-sm" data-testid="pricing-b2b-cta">
           Hablar con ventas
         </a>
       </div>
@@ -532,27 +680,35 @@
     <div class="grid md:grid-cols-5 gap-8">
       <!-- Form -->
       <div class="md:col-span-3 animate-in delay-1">
-        <form id="registro-form" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-5">
+        <form id="registro-form" class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-5" data-testid="form-registro" aria-label="Formulario de registro" novalidate>
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-1.5">Nombre completo</label>
-            <input type="text" name="nombre" required minlength="2" placeholder="Ej: Manuel Carrasco"
+            <label for="input-nombre" class="block text-sm font-semibold text-gray-700 mb-1.5">Nombre completo</label>
+            <input type="text" id="input-nombre" name="nombre" required minlength="2" placeholder="Ej: Manuel Carrasco" aria-required="true"
+              aria-describedby="form-mensaje"
+              data-testid="form-input-nombre"
               class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent transition-shadow">
           </div>
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-1.5">WhatsApp</label>
-            <input type="tel" name="whatsapp" required placeholder="+56912345678"
+            <label for="input-whatsapp" class="block text-sm font-semibold text-gray-700 mb-1.5">WhatsApp</label>
+            <input type="tel" id="input-whatsapp" name="whatsapp" required placeholder="+56912345678" aria-required="true"
+              aria-describedby="whatsapp-hint form-mensaje"
+              data-testid="form-input-whatsapp"
               class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent transition-shadow">
-            <p class="text-xs text-gray-400 mt-1">Número chileno con +56</p>
+            <p id="whatsapp-hint" class="text-xs text-gray-500 mt-1">Número chileno con +56</p>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-1.5">Ubicación (Latitud)</label>
-              <input type="number" name="lat" step="0.0001" min="-90" max="90" placeholder="-38.7359" required
+              <label for="input-lat" class="block text-sm font-semibold text-gray-700 mb-1.5">Ubicación (Latitud)</label>
+              <input type="number" id="input-lat" name="lat" step="0.0001" min="-90" max="90" placeholder="-38.7359" required aria-required="true"
+                aria-describedby="form-mensaje"
+                data-testid="form-input-lat"
                 class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent font-mono transition-shadow">
             </div>
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-1.5">Ubicación (Longitud)</label>
-              <input type="number" name="lon" step="0.0001" min="-180" max="180" placeholder="-72.5904" required
+              <label for="input-lon" class="block text-sm font-semibold text-gray-700 mb-1.5">Ubicación (Longitud)</label>
+              <input type="number" id="input-lon" name="lon" step="0.0001" min="-180" max="180" placeholder="-72.5904" required aria-required="true"
+                aria-describedby="form-mensaje"
+                data-testid="form-input-lon"
                 class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent font-mono transition-shadow">
             </div>
           </div>
@@ -560,16 +716,16 @@
             <label class="block text-sm font-semibold text-gray-700 mb-1.5">Cultivos</label>
             <div class="grid grid-cols-2 gap-2">
               <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-wa-light transition-colors">
-                <input type="checkbox" name="cultivos" value="papa" checked class="accent-wa-light"> Papa
+                <input type="checkbox" name="cultivos" value="papa" checked class="accent-wa-light" data-testid="form-checkbox-papa"> Papa
               </label>
               <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-wa-light transition-colors">
-                <input type="checkbox" name="cultivos" value="trigo" class="accent-wa-light"> Trigo
+                <input type="checkbox" name="cultivos" value="trigo" class="accent-wa-light" data-testid="form-checkbox-trigo"> Trigo
               </label>
               <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-wa-light transition-colors">
-                <input type="checkbox" name="cultivos" value="manzano" class="accent-wa-light"> Manzano
+                <input type="checkbox" name="cultivos" value="manzano" class="accent-wa-light" data-testid="form-checkbox-manzano"> Manzano
               </label>
               <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-xl cursor-pointer hover:border-wa-light transition-colors">
-                <input type="checkbox" name="cultivos" value="general" class="accent-wa-light"> General
+                <input type="checkbox" name="cultivos" value="general" class="accent-wa-light" data-testid="form-checkbox-general"> General
               </label>
             </div>
           </div>
@@ -577,22 +733,24 @@
             <label class="block text-sm font-semibold text-gray-700 mb-1.5">Plan</label>
             <div class="flex gap-3">
               <label class="flex-1 flex items-center gap-2 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-wa-light transition-colors has-[:checked]:border-wa-light has-[:checked]:bg-green-50">
-                <input type="radio" name="plan" value="free" checked class="accent-wa-light"> Libre ($0)
+                <input type="radio" name="plan" value="free" checked class="accent-wa-light" data-testid="form-radio-free"> Libre ($0)
               </label>
               <label class="flex-1 flex items-center gap-2 p-3 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-wa-light transition-colors has-[:checked]:border-wa-light has-[:checked]:bg-green-50">
-                <input type="radio" name="plan" value="premium" class="accent-wa-light"> Premium ($3.000/mes)
+                <input type="radio" name="plan" value="premium" class="accent-wa-light" data-testid="form-radio-premium"> Premium ($3.000/mes)
               </label>
             </div>
           </div>
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-1.5">Nombre de tu parcela</label>
-            <input type="text" name="nombre_parcela" placeholder="Ej: Parcela Sur, Lote principal"
+            <label for="input-parcela" class="block text-sm font-semibold text-gray-700 mb-1.5">Nombre de tu parcela</label>
+            <input type="text" id="input-parcela" name="nombre_parcela" placeholder="Ej: Parcela Sur, Lote principal"
+              aria-describedby="form-mensaje"
+              data-testid="form-input-nombre-parcela"
               class="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-wa-light focus:border-transparent transition-shadow">
           </div>
-          <button type="submit" class="w-full bg-wa-light hover:bg-green-600 text-white font-bold px-6 py-3.5 rounded-full transition-colors shadow-lg shadow-green-900/20 text-lg">
+          <button type="submit" class="w-full bg-wa-light hover:bg-green-600 text-white font-bold px-6 py-3.5 rounded-full transition-colors shadow-lg shadow-green-900/20 text-lg" data-testid="form-btn-submit">
             Registrarme
           </button>
-          <p id="form-mensaje" class="text-center text-sm hidden"></p>
+          <p id="form-mensaje" class="text-center text-sm hidden" role="alert" aria-live="assertive" data-testid="form-mensaje"></p>
         </form>
       </div>
 
@@ -603,8 +761,8 @@
           <p class="text-gray-600 text-sm mb-4">
             Si preferís, escribinos directamente por WhatsApp y te damos de alta al toque.
           </p>
-          <a href="https://wa.me/569XXXXXXXX" class="inline-flex items-center gap-2 bg-wa-light text-white font-semibold px-5 py-3 rounded-full hover:bg-green-600 transition-colors text-sm">
-            <span class="text-lg">💬</span> Escribir por WhatsApp
+          <a href="https://wa.me/569XXXXXXXX" class="inline-flex items-center gap-2 bg-wa-light text-white font-semibold px-5 py-3 rounded-full hover:bg-green-600 transition-colors text-sm" data-testid="contacto-link-whatsapp">
+            <span class="text-lg" aria-hidden="true">💬</span> Escribir por WhatsApp
           </a>
         </div>
 
@@ -621,7 +779,7 @@
             </li>
             <li class="flex items-start gap-2">
               <span class="text-wa-medium mt-0.5">🌐</span>
-              <a href="app.html" class="text-wa-medium hover:underline">App web →</a>
+              <a href="app.html" class="text-wa-medium hover:underline" data-testid="contacto-link-app-web">App web →</a>
             </li>
           </ul>
         </div>
@@ -653,6 +811,8 @@
   </div>
 </section>
 
+</main>
+
 <!-- ==================== FOOTER ==================== -->
 <footer class="bg-gray-900 text-white py-12">
   <div class="max-w-6xl mx-auto px-4">
@@ -661,16 +821,16 @@
         <span class="text-2xl">🌱</span>
         <div>
           <p class="font-bold text-lg">Werken-mapu</p>
-          <p class="text-gray-400 text-xs">El mensajero de la tierra</p>
+          <p class="text-gray-300 text-xs">El mensajero de la tierra</p>
         </div>
       </div>
-      <div class="flex gap-8 text-sm text-gray-400">
-        <a href="#como-funciona" class="hover:text-white transition-colors">Cómo funciona</a>
-        <a href="#planes" class="hover:text-white transition-colors">Planes</a>
-        <a href="#contacto" class="hover:text-white transition-colors">Contacto</a>
-        <a href="app.html" class="hover:text-white transition-colors">App</a>
-      </div>
-      <p class="text-gray-500 text-xs">© 2026 Werken-mapu. La Araucanía, Chile.</p>
+      <nav aria-label="Enlaces del pie de página" class="flex gap-8 text-sm text-gray-300">
+        <a href="#como-funciona" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="footer-link-como-funciona">Cómo funciona</a>
+        <a href="#planes" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="footer-link-planes">Planes</a>
+        <a href="#contacto" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="footer-link-contacto">Contacto</a>
+        <a href="app.html" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="footer-link-app">App</a>
+      </nav>
+      <p class="text-gray-300 text-xs">© 2026 Werken-mapu. La Araucanía, Chile.</p>
     </div>
   </div>
 </footer>

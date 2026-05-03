@@ -1,0 +1,18 @@
+# Werken-mapu — Asistente climático agrícola por WhatsApp para pequeños agricultores
+
+Werken-mapu ("mensajero de la tierra" en mapudungún) es un asistente climático que entrega alertas anticipadas de heladas, lluvias, viento y granizo directamente por WhatsApp. Usa datos hiperlocales (coordenadas GPS de la parcela), no pronósticos genéricos de ciudad. Sin apps, sin sensores, sin APIs pagas. Costo operativo $0–10 USD/mes. Plan libre gratuito, plan premium $3.000 CLP/mes (~$3 USD), paquete B2B para cooperativas y PRODESAL a $1.500 CLP/agricultor/mes.
+
+## Docs
+- [README](https://github.com/sebitabravo/Wenuke): Descripción completa del proyecto, stack, licencia MIT
+- [Documentación de API](https://backend-beryl-nu-18.vercel.app/docs): OpenAPI/Swagger — todos los endpoints, modelos, autenticación
+- [Arquitectura](https://github.com/sebitabravo/Wenuke/blob/main/docs/ARCHITECTURE.md): Diagrama de arquitectura, decisiones técnicas, estructura del proyecto
+- [API reference](https://github.com/sebitabravo/Wenuke/blob/main/docs/API.md): Endpoints detallados, modelo de datos, planes, autenticación
+- [Setup local](https://github.com/sebitabravo/Wenuke/blob/main/docs/SETUP.md): Cómo levantar el proyecto, variables de entorno, Docker
+- [Guía de contribución](https://github.com/sebitabravo/Wenuke/blob/main/CONTRIBUTING.md): Convenciones de commit, estilo de código, reporte de bugs
+
+## Optional
+- [Landing page](https://frontend-lac-eight-97.vercel.app): Sitio público con demo visual del producto
+- [Chat demo](https://frontend-lac-eight-97.vercel.app/app): Demo interactiva del asistente IA — probar sin registrarse
+- [Design system](https://github.com/sebitabravo/Wenuke/blob/main/DESIGN.md): Paleta de colores WhatsApp-inspired, componentes, estándar visual
+- [Pitch deck](https://github.com/sebitabravo/Wenuke/blob/main/docs/pitch.pdf): Presentación de la hackathon
+- [Código fuente](https://github.com/sebitabravo/Wenuke): Repositorio completo — backend FastAPI, frontend vanilla, GitHub Actions CI/CD
