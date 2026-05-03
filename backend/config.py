@@ -22,7 +22,7 @@ class Config:
     whatsapp_token: str = field(default_factory=lambda: os.getenv("WHATSAPP_TOKEN", ""))
     whatsapp_phone_number_id: str = field(default_factory=lambda: os.getenv("WHATSAPP_PHONE_NUMBER_ID", ""))
     # Seguridad
-    admin_token: str = field(default_factory=lambda: os.getenv("ADMIN_TOKEN", "wenuke-admin-secret"))
+    admin_token: str = field(default_factory=lambda: os.getenv("ADMIN_TOKEN", ""))
     cors_origins: str = field(default_factory=lambda: os.getenv(
         "CORS_ORIGINS",
         "http://localhost:3000,http://localhost:8000,https://frontend-lac-eight-97.vercel.app"

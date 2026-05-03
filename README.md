@@ -44,7 +44,7 @@ Agricultor escribe → comparte ubicación → elige cultivos → recibe alertas
                   │ HTTPS
 ┌─────────────────▼───────────────────────────────┐
 │            Backend (Vercel Serverless)            │
-│  FastAPI • Python 3.12 • SQLite                  │
+│  FastAPI • Python 3.12 • Turso + aiosqlite       │
 │  ┌──────────┬──────────┬──────────┬───────────┐  │
 │  │ OpenMeteo│  Groq    │  ODEPA   │ WhatsApp  │  │
 │  │ (gratis) │ (Llama)  │ (precios)│ Business  │  │
@@ -58,7 +58,7 @@ Agricultor escribe → comparte ubicación → elige cultivos → recibe alertas
 |---|---|---|
 | Frontend | HTML5 + Tailwind CSS + Vanilla JS | Cero dependencias, carga instantánea |
 | Backend | FastAPI (Python 3.12) | Alto rendimiento, tipado fuerte, async nativo |
-| Base de datos | SQLite (WAL mode) | Self-hosted, $0, sin infraestructura externa |
+| Base de datos | Turso + aiosqlite (dual) | Serverless HTTP + local dev, $0 con Turso free tier |
 | Clima | OpenMeteo API | Gratis, sin API key, cobertura completa Chile |
 | IA | Groq (Llama 3.1 70B) | $0.59/M tokens, latencia baja, fallback offline |
 | Precios | ODEPA (scraping + referencia) | Datos públicos de mercado mayorista chileno |
@@ -118,7 +118,7 @@ Wenuke/
 │   ├── app.js                # Lógica del chat
 │   └── vercel.json
 ├── backend/                  # Serverless Python (Vercel Functions)
-│   ├── main.py               # FastAPI — 17 endpoints
+│   ├── main.py               # FastAPI — 13 endpoints
 │   ├── models.py             # Schemas Pydantic v2
 │   ├── reglas.py             # Motor de reglas por cultivo (dominio puro)
 │   ├── clima.py              # Cliente OpenMeteo + cache + histórico
@@ -126,7 +126,7 @@ Wenuke/
 │   ├── odepa.py              # Scraping precios ODEPA
 │   ├── whatsapp.py           # WhatsApp Business Cloud API
 │   ├── scheduler.py          # Scheduler de alertas cada 6h
-│   ├── db.py                 # SQLite CRUD + multi-parcela + planes
+│   ├── db.py                 # Turso + aiosqlite CRUD + multi-parcela + planes
 │   ├── config.py             # Configuración desde env vars
 │   ├── requirements.txt
 │   └── vercel.json
