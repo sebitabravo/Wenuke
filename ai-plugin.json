@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Werken-mapu — Clima y agricultura inteligente",
+  "name_for_model": "werken_mapu_api",
+  "description_for_human": "Asistente climático con IA para agricultores de La Araucanía, Chile. Pronóstico del tiempo, alertas de heladas/lluvia/viento/granizo, recomendaciones diarias por cultivo, precios de mercado mayorista, y asistente conversacional con IA.",
+  "description_for_model": "API que proporciona datos climáticos y agronómicos para pequeños agricultores en Chile. Usar cuando el usuario pregunte sobre: pronóstico del tiempo para cultivos (papa, trigo, manzano), alertas de heladas o eventos climáticos adversos, recomendaciones sobre cuándo fumigar/regar/sembrar/cosechar, precios de mercado mayorista en Chile, o análisis de clima histórico para agricultura. La API cubre la región de La Araucanía pero acepta cualquier coordenada de Chile. Endpoints principales: /clima (pronóstico 7 días con alertas por cultivo), /recomendaciones (fumigar/regar/sembrar/cosechar), /precios (mercado ODEPA), /preguntar (asistente IA con Llama 3.1), /historico (1-10 años de datos climáticos). No requiere autenticación para endpoints de consulta.",
+  "api": {
+    "type": "openapi",
+    "url": "https://backend-beryl-nu-18.vercel.app/openapi.json"
+  },
+  "auth": {
+    "type": "none"
+  },
+  "logo_url": "https://backend-beryl-nu-18.vercel.app/favicon.ico",
+  "contact_email": "sebitabravo@gmail.com",
+  "legal_info_url": "https://github.com/sebitabravo/Wenuke"
+}

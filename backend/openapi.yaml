@@ -1,0 +1,1443 @@
+openapi: "3.0.3"
+info:
+  title: Werken-mapu API
+  version: 1.0.0
+  description: |
+    Asistente climático con IA para pequeños agricultores de La Araucanía, Chile.
+
+    ## Qué hace esta API
+
+    - **Pronóstico 7 días** con alertas de helada, lluvia intensa, viento fuerte y granizo
+    - **Recomendaciones diarias** por cultivo: fumigar, regar, sembrar, cosechar
+    - **Precios de mercado** mayorista desde ODEPA (gobierno chileno)
+    - **Asistente IA conversacional** (Llama 3.1 70B vía Groq) con contexto climático real
+    - **Historial climático** de 1 a 10 años con resúmenes anuales
+    - **Registro y gestión** de agricultores, parcelas y cultivos
+
+    ## Autenticación
+
+    Endpoints públicos no requieren auth. Los protegidos usan `Authorization: Bearer <token>`.
+    El token se obtiene en `POST /registrar` y expira a los 90 días. Rotar con `POST /refresh-token`.
+
+    ## Formato de errores
+
+    ```json
+    {"error": "descripción humana", "code": "HTTP_400", "suggestion": "qué hacer para corregirlo"}
+    ```
+
+    ## Rate limits
+
+    | Endpoint | Límite |
+    |---|---|
+    | `/clima` | 30 req/min |
+    | `/preguntar` | 10 req/min |
+    | `/registrar` | 3 req/min |
+    | resto | sin límite |
+
+  contact:
+    name: Werken-mapu
+    email: sebitabravo@gmail.com
+
+servers:
+  - url: https://backend-beryl-nu-18.vercel.app
+    description: Producción (Vercel Serverless)
+  - url: http://localhost:8000
+    description: Desarrollo local (Docker Compose)
+
+tags:
+  - name: Clima
+    description: Pronóstico, alertas y datos históricos
+  - name: Agricultor
+    description: Registro, parcelas y plan
+  - name: Mercado
+    description: Precios mayoristas y recomendaciones
+
+paths:
+  # -------------------------------------------------------------------------
+  # Health & Meta
+  # -------------------------------------------------------------------------
+  /:
+    get:
+      operationId: healthCheck
+      summary: Verificar estado del servicio
+      description: |
+        Health check con verificación de dependencias externas (base de datos,
+        OpenMeteo, Groq, WhatsApp). Retorna el estado general y el estado de
+        cada dependencia por separado.
+
+        Usar este endpoint para monitoreo o para verificar conectividad antes
+        de hacer otras consultas.
+      tags: [Clima]
+      responses:
+        "200":
+          description: Servicio operativo (o degradado si alguna dependencia falla)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                servicio: Werken-mapu API
+                version: 1.0.0
+                estado: operativo
+                checks:
+                  db: ok
+                  openmeteo: ok
+                  groq: configurado
+                  whatsapp: configurado
+                offline: false
+
+  /api/info:
+    get:
+      operationId: getApiInfo
+      summary: Describir la API para agentes de IA
+      description: |
+        Retorna metadata completa de la API diseñada para que un agente de IA
+        (ChatGPT, Claude, etc.) pueda entender y usar todos los endpoints sin
+        intervención humana.
+
+        Incluye: endpoints disponibles, parámetros, formatos de request/response,
+        autenticación requerida, rate limits, cultivos soportados, planes, y
+        ejemplos curl.
+      tags: [Clima]
+      responses:
+        "200":
+          description: Metadata de la API
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiInfo"
+
+  # -------------------------------------------------------------------------
+  # Clima
+  # -------------------------------------------------------------------------
+  /clima:
+    get:
+      operationId: getClimateAlerts
+      summary: Pronóstico 7 días con alertas por cultivo
+      description: |
+        Obtiene el pronóstico climático de 7 días para una ubicación específica
+        y lo analiza según las necesidades del cultivo indicado.
+
+        Retorna alertas de helada, lluvia intensa, viento fuerte y granizo,
+        cada una con severidad (alta/media/baja), fecha y descripción en
+        lenguaje claro para el agricultor.
+
+        Incluye un resumen numérico (temps min/max, lluvia total, viento max)
+        y opcionalmente los datos crudos de OpenMeteo.
+      tags: [Clima]
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          description: Latitud de la parcela (decimal, -90 a 90)
+          schema:
+            type: number
+            format: float
+            minimum: -90
+            maximum: 90
+          example: -38.7359
+        - name: lon
+          in: query
+          required: true
+          description: Longitud de la parcela (decimal, -180 a 180)
+          schema:
+            type: number
+            format: float
+            minimum: -180
+            maximum: 180
+          example: -72.5904
+        - name: cultivo
+          in: query
+          required: false
+          description: Cultivo para el análisis. "general" es el comodín para cualquier cultivo.
+          schema:
+            type: string
+            enum: [papa, trigo, manzano, general]
+            default: general
+          example: papa
+      responses:
+        "200":
+          description: Pronóstico con alertas generadas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClimaResponse"
+              example:
+                cultivo: papa
+                ubicacion:
+                  lat: -38.7359
+                  lon: -72.5904
+                alertas:
+                  - tipo: helada
+                    mensaje: Temperatura bajo 0°C entre las 03:00 y 07:00. Riesgo de daño en brotes.
+                    severidad: alta
+                    dia: "2026-05-03"
+                    hora: "04:00"
+                  - tipo: lluvia_intensa
+                    mensaje: Precipitación acumulada de 45mm en 6h. Riesgo de anegamiento.
+                    severidad: media
+                    dia: "2026-05-02"
+                    hora: null
+                resumen:
+                  temp_min: -2.1
+                  temp_max: 14.5
+                  lluvia_total_24h: 12.3
+                  viento_max: 28.4
+                  dias_forecast: 7
+                raw_forecast: null
+        "400":
+          description: Parámetros inválidos (cultivo no soportado, coordenadas fuera de rango)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              example:
+                error: "Cultivo 'tomate' no soportado. Usar: papa, trigo, manzano, general"
+                code: HTTP_400
+                suggestion: Revisa los parámetros de tu request. Los valores enviados no son válidos.
+        "429":
+          description: Rate limit excedido (30 req/min)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  # -------------------------------------------------------------------------
+  # Asistente IA
+  # -------------------------------------------------------------------------
+  /preguntar:
+    post:
+      operationId: askAssistant
+      summary: Consultar al asistente IA con contexto climático real
+      description: |
+        Envía una pregunta en lenguaje natural sobre clima, cultivos o prácticas
+        agrícolas. El asistente usa datos climáticos reales de la ubicación para
+        dar una respuesta contextualizada.
+
+        El motor es Llama 3.1 70B vía Groq. Si Groq no está disponible, el
+        sistema responde en modo offline con reglas predefinidas.
+
+        El campo `offline` en la respuesta indica si la respuesta fue generada
+        por IA (false) o por el motor offline (true).
+      tags: [Clima]
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreguntarRequest"
+            example:
+              pregunta: "¿Debo regar mis papas hoy con este pronóstico de lluvia?"
+              lat: -38.7359
+              lon: -72.5904
+              cultivo: papa
+      responses:
+        "200":
+          description: Respuesta del asistente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreguntarResponse"
+              example:
+                respuesta: "Hoy no se recomienda regar. El pronóstico indica 12mm de lluvia acumulada en las próximas 6 horas, suficiente para cultivos de papa en etapa de tuberización."
+                offline: false
+        "400":
+          description: Pregunta vacía, muy corta, o cultivo no soportado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Rate limit excedido (10 req/min)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  # -------------------------------------------------------------------------
+  # Recomendaciones
+  # -------------------------------------------------------------------------
+  /recomendaciones:
+    get:
+      operationId: getCropRecommendations
+      summary: Recomendaciones diarias por cultivo
+      description: |
+        Genera recomendaciones agrícolas accionables para el día actual según
+        las condiciones climáticas y el tipo de cultivo. Responde cuatro
+        preguntas clave:
+
+        1. **fumigar** — ¿Es buen momento para aplicar pesticidas?
+        2. **regar** — ¿Hace falta riego o la lluvia es suficiente?
+        3. **sembrar** — ¿Las condiciones son aptas para siembra?
+        4. **cosechar** — ¿Conviene cosechar hoy?
+
+        Cada recomendación incluye: Sí/No/Precaución/Monitorear/Esperar,
+        nivel de confianza (alta/media/baja), y explicación detallada.
+      tags: [Mercado]
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          description: Latitud de la parcela (-90 a 90)
+          schema:
+            type: number
+            format: float
+            minimum: -90
+            maximum: 90
+          example: -38.7359
+        - name: lon
+          in: query
+          required: true
+          description: Longitud de la parcela (-180 a 180)
+          schema:
+            type: number
+            format: float
+            minimum: -180
+            maximum: 180
+          example: -72.5904
+        - name: cultivo
+          in: query
+          required: false
+          description: Cultivo objetivo
+          schema:
+            type: string
+            enum: [papa, trigo, manzano, general]
+            default: general
+          example: papa
+      responses:
+        "200":
+          description: Recomendaciones diarias generadas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecomendacionResponse"
+              example:
+                cultivo: papa
+                ubicacion:
+                  lat: -38.7359
+                  lon: -72.5904
+                dia: "2026-04-30"
+                recomendaciones:
+                  - accion: fumigar
+                    recomendacion: "Sí"
+                    confianza: alta
+                    detalle: "Hoy es buen día para fumigar tu Papa. Viento bajo 15 km/h, sin lluvia pronosticada en las próximas 24h, temperatura dentro del rango óptimo."
+                  - accion: regar
+                    recomendacion: "No"
+                    confianza: alta
+                    detalle: "No es necesario regar hoy. La humedad del suelo es adecuada y hay lluvia pronosticada para mañana."
+                  - accion: sembrar
+                    recomendacion: "Precaución"
+                    confianza: media
+                    detalle: "Las temperaturas están cerca del límite inferior para siembra. Si sembrás, hacelo al mediodía cuando la temperatura sea más alta."
+                  - accion: cosechar
+                    recomendacion: "Monitorear"
+                    confianza: baja
+                    detalle: "Los datos actuales no son suficientes para determinar si es buen momento de cosecha. Depende de la madurez de tu cultivo."
+        "400":
+          description: Cultivo no soportado o coordenadas inválidas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  # -------------------------------------------------------------------------
+  # Precios
+  # -------------------------------------------------------------------------
+  /precios:
+    get:
+      operationId: getMarketPrices
+      summary: Precios mayoristas de productos agrícolas
+      description: |
+        Consulta precios de mercado mayorista desde ODEPA (Oficina de Estudios
+        y Políticas Agrarias del gobierno chileno). Incluye precio actual, rango
+        de últimos 3 meses, tendencia (alza/baja/estable), mercado de referencia
+        y fuente de los datos.
+
+        Si no se especifica producto, devuelve todos los disponibles. Si ODEPA
+        no está accesible, se usan precios de referencia pre-cargados.
+      tags: [Mercado]
+      parameters:
+        - name: producto
+          in: query
+          required: false
+          description: Filtrar por producto. Si se omite, devuelve todos.
+          schema:
+            type: string
+            enum: [papa, trigo, manzano]
+          example: papa
+      responses:
+        "200":
+          description: Lista de precios
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreciosResponse"
+              example:
+                precios:
+                  - producto: papa
+                    nombre: Papa
+                    precio_actual: 650
+                    precio_min_3m: 450
+                    precio_max_3m: 900
+                    unidad: kg
+                    mercado: "Lo Valledor, Santiago"
+                    tendencia: estable
+                    nota: "Alta variabilidad según variedad."
+                    fuente: referencia
+                    actualizado: "2026-04-30T10:00:00"
+                consultado_en: "2026-04-30T10:00:00"
+        "400":
+          description: Producto no soportado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  # -------------------------------------------------------------------------
+  # Histórico
+  # -------------------------------------------------------------------------
+  /historico:
+    get:
+      operationId: getClimateHistory
+      summary: Datos climáticos históricos con paginación
+      description: |
+        Consulta el archivo climático histórico de OpenMeteo para una ubicación.
+        Cubre de 1 a 10 años hacia atrás desde la fecha actual.
+
+        La respuesta incluye:
+        - **resumen_anual**: agregados por año (temps promedio y absoluta,
+          precipitación total, días de lluvia, días de helada, viento máximo)
+        - **datos_diarios**: registros diarios paginados (temp max/min,
+          precipitación, viento, etc.)
+        - **Metadatos de paginación**: page, limit, total, total_pages
+
+        Paginación: usar `page` y `limit`. El límite máximo es 365 días por página.
+        Para recorrer todos los datos, incrementar `page` hasta alcanzar `total_pages`.
+      tags: [Clima]
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          description: Latitud de la parcela (-90 a 90)
+          schema:
+            type: number
+            format: float
+            minimum: -90
+            maximum: 90
+          example: -38.7359
+        - name: lon
+          in: query
+          required: true
+          description: Longitud de la parcela (-180 a 180)
+          schema:
+            type: number
+            format: float
+            minimum: -180
+            maximum: 180
+          example: -72.5904
+        - name: anos
+          in: query
+          required: false
+          description: Años hacia atrás a consultar (1 a 10)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+            default: 5
+          example: 5
+        - name: page
+          in: query
+          required: false
+          description: Número de página (empieza en 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+        - name: limit
+          in: query
+          required: false
+          description: Registros diarios por página (1 a 365)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 90
+          example: 90
+      responses:
+        "200":
+          description: Datos históricos paginados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoricoResponse"
+              example:
+                ubicacion:
+                  lat: -38.7359
+                  lon: -72.5904
+                anos_consultados: 5
+                resumen_anual:
+                  - ano: 2025
+                    temp_max_promedio: 18.5
+                    temp_min_promedio: 6.2
+                    temp_min_absoluta: -3.1
+                    precipitacion_total: 1150.0
+                    dias_lluvia: 120
+                    dias_helada: 15
+                    viento_max: 55.0
+                datos_diarios: []
+                page: 1
+                limit: 90
+                total: 1826
+                total_pages: 21
+        "400":
+          description: Parámetros inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Error al consultar OpenMeteo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  # -------------------------------------------------------------------------
+  # Registro
+  # -------------------------------------------------------------------------
+  /registrar:
+    post:
+      operationId: registerFarmer
+      summary: Registrar un nuevo agricultor
+      description: |
+        Da de alta un agricultor en el sistema. Crea usuario, parcela inicial
+        y cultivos asociados. Retorna un token de autenticación que debe usarse
+        en los endpoints protegidos.
+
+        **Importante**: el token se muestra solo una vez en esta respuesta.
+        Guardalo. Si lo perdés, hay que volver a registrarse.
+
+        El token expira a los 90 días. Usar `POST /refresh-token` para rotarlo
+        antes de que expire.
+      tags: [Agricultor]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrarRequest"
+            example:
+              whatsapp: "+56912345678"
+              nombre: "Juan Pérez"
+              lat: -38.7359
+              lon: -72.5904
+              cultivos: [papa, trigo]
+              plan: free
+              nombre_parcela: "Parcela Sur"
+      responses:
+        "200":
+          description: Registro exitoso con token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrarResponse"
+              example:
+                mensaje: "¡Registro exitoso, Juan! Te avisaremos por WhatsApp ante cualquier alerta para tus cultivos de papa y trigo."
+                usuario_id: 42
+                token: "abc123def456ghi789..."
+                parcela_id: 1
+        "400":
+          description: Datos inválidos (WhatsApp mal formado, campos vacíos)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: WhatsApp ya registrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Rate limit excedido (3 req/min)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  # -------------------------------------------------------------------------
+  # Parcelas
+  # -------------------------------------------------------------------------
+  /parcelas:
+    get:
+      operationId: listPlots
+      summary: Listar parcelas del agricultor autenticado
+      description: |
+        Devuelve todas las parcelas del usuario con sus cultivos asociados.
+        También indica el plan actual y el máximo de parcelas permitido.
+      tags: [Agricultor]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Lista de parcelas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParcelasListResponse"
+        "401":
+          description: Token inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+    post:
+      operationId: createPlot
+      summary: Agregar una nueva parcela
+      description: |
+        Crea una parcela adicional para el usuario. Límites por plan:
+        - **free**: máximo 1 parcela
+        - **premium**: máximo 10 parcelas
+      tags: [Agricultor]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParcelaRequest"
+            example:
+              nombre: "Lote Norte"
+              lat: -38.7
+              lon: -72.6
+              cultivos: [trigo]
+      responses:
+        "200":
+          description: Parcela creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParcelaResponse"
+        "401":
+          description: Token inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Límite de parcelas del plan excedido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /parcelas/{parcela_id}:
+    delete:
+      operationId: deletePlot
+      summary: Eliminar una parcela
+      description: Elimina una parcela del usuario. Solo el dueño puede eliminarla.
+      tags: [Agricultor]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: parcela_id
+          in: path
+          required: true
+          description: ID de la parcela a eliminar
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: Parcela eliminada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                  parcela_id:
+                    type: integer
+              example:
+                mensaje: "Parcela eliminada"
+                parcela_id: 1
+        "401":
+          description: Token inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: Parcela no encontrada o no pertenece al usuario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  # -------------------------------------------------------------------------
+  # Plan
+  # -------------------------------------------------------------------------
+  /plan:
+    get:
+      operationId: getSubscriptionPlan
+      summary: Ver plan actual y uso
+      description: |
+        Retorna el plan actual del usuario (free/premium), cantidad de parcelas
+        en uso y el máximo permitido por su plan.
+      tags: [Agricultor]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Estado del plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanResponse"
+        "401":
+          description: Token inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+    post:
+      operationId: changeSubscriptionPlan
+      summary: Cambiar plan (free ↔ premium)
+      description: Cambia el plan del usuario entre free y premium.
+      tags: [Agricultor]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActualizarPlanRequest"
+      responses:
+        "200":
+          description: Plan actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanResponse"
+        "401":
+          description: Token inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  # -------------------------------------------------------------------------
+  # Refresh token
+  # -------------------------------------------------------------------------
+  /refresh-token:
+    post:
+      operationId: refreshAuthToken
+      summary: Rotar token de autenticación
+      description: |
+        Genera un nuevo token de autenticación para el usuario. El token
+        anterior deja de funcionar inmediatamente.
+
+        Usar este endpoint antes de que el token expire (90 días) para
+        mantener la sesión activa sin necesidad de re-registrarse.
+      tags: [Agricultor]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Nuevo token generado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrarResponse"
+        "401":
+          description: Token inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  # -------------------------------------------------------------------------
+  # Enviar alertas (admin)
+  # -------------------------------------------------------------------------
+  /enviar-alertas:
+    post:
+      operationId: dispatchAlerts
+      summary: "[Admin] Enviar alertas vía WhatsApp a todos los agricultores afectados"
+      description: |
+        Ejecuta un ciclo completo de chequeo de alertas: evalúa el pronóstico
+        actual para cada parcela registrada, determina si corresponde enviar
+        alerta, y despacha mensajes vía WhatsApp Business API.
+
+        Requiere token de administrador configurado en el servidor (env `ADMIN_TOKEN`).
+
+        Retorna cantidad de alertas enviadas, usuarios afectados, detalle por
+        usuario (sin PII), y estado de la integración con WhatsApp.
+      tags: [Agricultor]
+      security:
+        - adminAuth: []
+      responses:
+        "200":
+          description: Resultado del dispatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnviarAlertasResponse"
+        "401":
+          description: Token admin no proporcionado o mal formado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: Token admin inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "501":
+          description: Admin token no configurado en el servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+# ===========================================================================
+# Componentes — Schemas
+# ===========================================================================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Token de usuario obtenido en POST /registrar
+    adminAuth:
+      type: http
+      scheme: bearer
+      description: Token de administrador configurado via ADMIN_TOKEN env var
+
+  schemas:
+    # -----------------------------------------------------------------------
+    # Error
+    # -----------------------------------------------------------------------
+    ApiError:
+      type: object
+      description: Formato estándar de error. Diseñado para que una IA pueda interpretar y corregir el error automáticamente.
+      required: [error, code, suggestion]
+      properties:
+        error:
+          type: string
+          description: Descripción humana del problema
+          example: "Cultivo 'tomate' no soportado. Usar: papa, trigo, manzano, general"
+        code:
+          type: string
+          description: Código de error programático (HTTP_400, HTTP_401, etc.)
+          example: HTTP_400
+        suggestion:
+          type: string
+          description: Sugerencia accionable para que el agente corrija el request
+          example: Revisa los parámetros de tu request. Los valores enviados no son válidos.
+
+    # -----------------------------------------------------------------------
+    # Health
+    # -----------------------------------------------------------------------
+    HealthResponse:
+      type: object
+      required: [servicio, version, estado, checks, offline]
+      properties:
+        servicio:
+          type: string
+          example: Werken-mapu API
+        version:
+          type: string
+          example: 1.0.0
+        estado:
+          type: string
+          enum: [operativo, degradado]
+        checks:
+          type: object
+          properties:
+            db:
+              type: string
+            openmeteo:
+              type: string
+            groq:
+              type: string
+            whatsapp:
+              type: string
+        offline:
+          type: boolean
+
+    # -----------------------------------------------------------------------
+    # API Info
+    # -----------------------------------------------------------------------
+    ApiInfo:
+      type: object
+      description: Metadata completa de la API para consumo por agentes de IA.
+      properties:
+        api_name:
+          type: string
+        version:
+          type: string
+        description:
+          type: string
+        base_url:
+          type: string
+          format: uri
+        contact:
+          type: object
+        endpoints:
+          type: array
+        authentication:
+          type: object
+        error_format:
+          type: object
+        supported_crops:
+          type: array
+        plans:
+          type: object
+
+    # -----------------------------------------------------------------------
+    # Alerta
+    # -----------------------------------------------------------------------
+    Alerta:
+      type: object
+      description: Una alerta climática para un día específico del pronóstico.
+      required: [tipo, mensaje, severidad, dia]
+      properties:
+        tipo:
+          type: string
+          enum: [helada, lluvia_intensa, viento_fuerte, granizo]
+          description: Tipo de evento climático adverso
+          example: helada
+        mensaje:
+          type: string
+          minLength: 5
+          description: Descripción legible de la alerta en español
+          example: Temperatura bajo 0°C entre las 03:00 y 07:00. Riesgo de daño en brotes.
+        severidad:
+          type: string
+          enum: [alta, media, baja]
+          description: Nivel de riesgo para el cultivo
+          example: alta
+        dia:
+          type: string
+          format: date
+          description: Fecha de la alerta en formato ISO 8601 (YYYY-MM-DD)
+          example: "2026-05-03"
+        hora:
+          type: string
+          nullable: true
+          description: Hora puntual del evento (HH:MM, 24h). Null si cubre todo el día.
+          example: "04:00"
+
+    # -----------------------------------------------------------------------
+    # ClimaResponse
+    # -----------------------------------------------------------------------
+    ClimaResponse:
+      type: object
+      description: Respuesta completa del pronóstico climático con alertas generadas.
+      required: [cultivo, ubicacion, alertas, resumen]
+      properties:
+        cultivo:
+          type: string
+          description: Cultivo para el cual se generó el análisis
+          example: papa
+        ubicacion:
+          type: object
+          description: Coordenadas geográficas de la consulta
+          required: [lat, lon]
+          properties:
+            lat:
+              type: number
+              format: float
+              example: -38.7359
+            lon:
+              type: number
+              format: float
+              example: -72.5904
+        alertas:
+          type: array
+          description: Lista de alertas activas para los próximos 7 días
+          items:
+            $ref: "#/components/schemas/Alerta"
+        resumen:
+          type: object
+          description: Resumen numérico del pronóstico
+          required: [temp_min, temp_max, lluvia_total_24h, viento_max, dias_forecast]
+          properties:
+            temp_min:
+              type: number
+              description: Temperatura mínima en el período (°C)
+              example: -2.1
+            temp_max:
+              type: number
+              description: Temperatura máxima en el período (°C)
+              example: 14.5
+            lluvia_total_24h:
+              type: number
+              description: Precipitación acumulada en 24 horas (mm)
+              example: 12.3
+            viento_max:
+              type: number
+              description: Velocidad máxima de viento (km/h)
+              example: 28.4
+            dias_forecast:
+              type: integer
+              description: Cantidad de días del pronóstico
+              example: 7
+        raw_forecast:
+          type: object
+          nullable: true
+          description: Datos crudos de OpenMeteo. Solo presente si se solicita.
+
+    # -----------------------------------------------------------------------
+    # Preguntar
+    # -----------------------------------------------------------------------
+    PreguntarRequest:
+      type: object
+      description: Pregunta en lenguaje natural para el asistente IA con contexto climático real.
+      required: [pregunta, lat, lon]
+      properties:
+        pregunta:
+          type: string
+          minLength: 3
+          maxLength: 500
+          description: Pregunta del agricultor sobre clima, cultivos o prácticas agrícolas
+          example: "¿Debo regar mis papas hoy con este pronóstico de lluvia?"
+        lat:
+          type: number
+          format: float
+          minimum: -90
+          maximum: 90
+          example: -38.7359
+        lon:
+          type: number
+          format: float
+          minimum: -180
+          maximum: 180
+          example: -72.5904
+        cultivo:
+          type: string
+          enum: [papa, trigo, manzano, general]
+          default: general
+          example: papa
+
+    PreguntarResponse:
+      type: object
+      description: Respuesta del asistente IA (Groq Llama 3.1 o motor offline).
+      required: [respuesta, offline]
+      properties:
+        respuesta:
+          type: string
+          description: Texto de respuesta generado
+          example: "Hoy no se recomienda regar. El pronóstico indica 12mm de lluvia acumulada en las próximas 6 horas."
+        offline:
+          type: boolean
+          description: True si la respuesta viene del motor offline (Groq no disponible)
+          example: false
+
+    # -----------------------------------------------------------------------
+    # Registrar
+    # -----------------------------------------------------------------------
+    RegistrarRequest:
+      type: object
+      description: Datos para dar de alta un nuevo agricultor en el sistema.
+      required: [whatsapp, nombre, lat, lon, cultivos]
+      properties:
+        whatsapp:
+          type: string
+          description: Número de WhatsApp chileno. Formato +56912345678.
+          example: "+56912345678"
+        nombre:
+          type: string
+          minLength: 2
+          description: Nombre del agricultor
+          example: "Juan Pérez"
+        lat:
+          type: number
+          format: float
+          minimum: -90
+          maximum: 90
+          example: -38.7359
+        lon:
+          type: number
+          format: float
+          minimum: -180
+          maximum: 180
+          example: -72.5904
+        cultivos:
+          type: array
+          minItems: 1
+          description: Cultivos a monitorear
+          items:
+            type: string
+            enum: [papa, trigo, manzano, general]
+          example: [papa, trigo]
+        plan:
+          type: string
+          enum: [free, premium]
+          default: free
+          description: Plan de suscripción
+          example: free
+        nombre_parcela:
+          type: string
+          default: "Parcela 1"
+          description: Nombre descriptivo de la parcela
+          example: "Parcela Sur"
+
+    RegistrarResponse:
+      type: object
+      description: Confirmación de registro exitoso. El token se muestra solo una vez.
+      required: [mensaje, usuario_id, token, parcela_id]
+      properties:
+        mensaje:
+          type: string
+          description: Mensaje de confirmación amigable
+          example: "¡Registro exitoso, Juan! Te avisaremos por WhatsApp ante cualquier alerta."
+        usuario_id:
+          type: integer
+          description: ID del usuario creado
+          example: 42
+        token:
+          type: string
+          description: Token de autenticación Bearer. Guardarlo, no se vuelve a mostrar.
+          example: "abc123def456..."
+        parcela_id:
+          type: integer
+          description: ID de la primera parcela creada
+          example: 1
+
+    # -----------------------------------------------------------------------
+    # Parcelas
+    # -----------------------------------------------------------------------
+    ParcelaRequest:
+      type: object
+      description: Datos para crear una nueva parcela.
+      required: [nombre, lat, lon, cultivos]
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          description: Nombre de la parcela
+          example: "Lote Norte"
+        lat:
+          type: number
+          format: float
+          minimum: -90
+          maximum: 90
+        lon:
+          type: number
+          format: float
+          minimum: -180
+          maximum: 180
+        cultivos:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            enum: [papa, trigo, manzano, general]
+
+    ParcelaResponse:
+      type: object
+      description: Datos de una parcela registrada.
+      required: [id, nombre, lat, lon, cultivos]
+      properties:
+        id:
+          type: integer
+        nombre:
+          type: string
+        lat:
+          type: number
+          format: float
+        lon:
+          type: number
+          format: float
+        cultivos:
+          type: array
+          items:
+            type: string
+
+    ParcelasListResponse:
+      type: object
+      description: Lista de parcelas con metadata del plan.
+      required: [usuario_id, plan, max_parcelas, parcelas]
+      properties:
+        usuario_id:
+          type: integer
+        plan:
+          type: string
+        max_parcelas:
+          type: integer
+        parcelas:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParcelaResponse"
+
+    # -----------------------------------------------------------------------
+    # Plan
+    # -----------------------------------------------------------------------
+    ActualizarPlanRequest:
+      type: object
+      description: Cambio de plan de suscripción.
+      required: [plan]
+      properties:
+        plan:
+          type: string
+          enum: [free, premium]
+          example: premium
+
+    PlanResponse:
+      type: object
+      description: Estado actual de la suscripción.
+      required: [usuario_id, nombre, plan, parcelas_actuales, parcelas_max]
+      properties:
+        usuario_id:
+          type: integer
+        nombre:
+          type: string
+        plan:
+          type: string
+        parcelas_actuales:
+          type: integer
+        parcelas_max:
+          type: integer
+
+    # -----------------------------------------------------------------------
+    # Precios
+    # -----------------------------------------------------------------------
+    PrecioMercado:
+      type: object
+      description: Precio de un producto en el mercado mayorista chileno.
+      required: [producto, nombre, precio_actual, unidad, mercado, tendencia, fuente, actualizado]
+      properties:
+        producto:
+          type: string
+          example: papa
+        nombre:
+          type: string
+          example: Papa
+        precio_actual:
+          type: number
+          format: float
+          description: Precio actual en pesos chilenos
+          example: 650
+        precio_min_3m:
+          type: number
+          format: float
+          description: Precio mínimo en los últimos 3 meses
+          example: 450
+        precio_max_3m:
+          type: number
+          format: float
+          description: Precio máximo en los últimos 3 meses
+          example: 900
+        unidad:
+          type: string
+          description: Unidad de medida (kg, saco, etc.)
+          example: kg
+        mercado:
+          type: string
+          description: Mercado de referencia
+          example: "Lo Valledor, Santiago"
+        tendencia:
+          type: string
+          description: Tendencia del precio (alza, baja, estable)
+          example: estable
+        nota:
+          type: string
+          description: Nota adicional sobre el precio
+          example: "Alta variabilidad según variedad."
+        fuente:
+          type: string
+          description: Origen de los datos (odepa, referencia)
+          example: referencia
+        actualizado:
+          type: string
+          format: date-time
+          description: Fecha de última actualización del dato
+
+    PreciosResponse:
+      type: object
+      description: Lista de precios de todos los productos disponibles.
+      required: [precios, consultado_en]
+      properties:
+        precios:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrecioMercado"
+        consultado_en:
+          type: string
+          format: date-time
+          description: Timestamp de la consulta
+
+    # -----------------------------------------------------------------------
+    # Recomendaciones
+    # -----------------------------------------------------------------------
+    RecomendacionItem:
+      type: object
+      description: Una recomendación accionable para una práctica agrícola específica.
+      required: [accion, recomendacion, confianza, detalle]
+      properties:
+        accion:
+          type: string
+          enum: [fumigar, regar, sembrar, cosechar]
+          description: Práctica agrícola
+          example: fumigar
+        recomendacion:
+          type: string
+          enum: ["Sí", "No", "Precaución", "Monitorear", "Esperar"]
+          description: Recomendación concreta
+          example: "Sí"
+        confianza:
+          type: string
+          enum: [alta, media, baja]
+          description: Nivel de confianza en la recomendación
+          example: alta
+        detalle:
+          type: string
+          description: Explicación detallada de la recomendación
+          example: "Hoy es buen día para fumigar tu Papa. Viento bajo 15 km/h, sin lluvia pronosticada en las próximas 24h."
+
+    RecomendacionResponse:
+      type: object
+      description: Conjunto completo de recomendaciones diarias para un cultivo.
+      required: [cultivo, ubicacion, dia, recomendaciones]
+      properties:
+        cultivo:
+          type: string
+        ubicacion:
+          type: object
+          properties:
+            lat:
+              type: number
+            lon:
+              type: number
+        dia:
+          type: string
+          format: date
+          description: Fecha para la cual aplican las recomendaciones
+        recomendaciones:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecomendacionItem"
+
+    # -----------------------------------------------------------------------
+    # Histórico
+    # -----------------------------------------------------------------------
+    ResumenAnual:
+      type: object
+      description: Resumen climático agregado por año.
+      required: [ano, temp_max_promedio, temp_min_promedio, temp_min_absoluta, precipitacion_total, dias_lluvia, dias_helada, viento_max]
+      properties:
+        ano:
+          type: integer
+          example: 2025
+        temp_max_promedio:
+          type: number
+          description: Temperatura máxima promedio del año (°C)
+          example: 18.5
+        temp_min_promedio:
+          type: number
+          description: Temperatura mínima promedio del año (°C)
+          example: 6.2
+        temp_min_absoluta:
+          type: number
+          description: Temperatura más baja registrada en el año (°C)
+          example: -3.1
+        precipitacion_total:
+          type: number
+          description: Precipitación acumulada anual (mm)
+          example: 1150.0
+        dias_lluvia:
+          type: integer
+          description: Días con más de 1mm de lluvia
+          example: 120
+        dias_helada:
+          type: integer
+          description: Días con temperatura mínima bajo 0°C
+          example: 15
+        viento_max:
+          type: number
+          description: Racha máxima de viento registrada (km/h)
+          example: 55.0
+
+    HistoricoResponse:
+      type: object
+      description: Datos climáticos históricos con resúmenes anuales y paginación.
+      required: [ubicacion, anos_consultados, resumen_anual, datos_diarios, page, limit, total, total_pages]
+      properties:
+        ubicacion:
+          type: object
+          properties:
+            lat:
+              type: number
+            lon:
+              type: number
+        anos_consultados:
+          type: integer
+        resumen_anual:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResumenAnual"
+        datos_diarios:
+          type: array
+          description: Registros diarios paginados (temp_max, temp_min, precipitacion, viento_max, fecha)
+          items:
+            type: object
+        page:
+          type: integer
+          description: Página actual
+        limit:
+          type: integer
+          description: Registros por página
+        total:
+          type: integer
+          description: Total de registros diarios disponibles
+        total_pages:
+          type: integer
+          description: Total de páginas
+
+    # -----------------------------------------------------------------------
+    # Enviar Alertas (admin)
+    # -----------------------------------------------------------------------
+    EnviarAlertasResponse:
+      type: object
+      description: Resultado del envío masivo de alertas vía WhatsApp.
+      required: [enviadas, usuarios_afectados, detalle, envios_fallidos, whatsapp_activo]
+      properties:
+        enviadas:
+          type: integer
+          description: Cantidad de alertas efectivamente enviadas
+        usuarios_afectados:
+          type: integer
+          description: Usuarios que recibieron al menos una alerta
+        detalle:
+          type: array
+          description: Métricas agregadas por usuario (sin información personal)
+          items:
+            type: object
+            properties:
+              usuario_id:
+                type: integer
+              cultivo:
+                type: string
+              cantidad_alertas:
+                type: integer
+              tipos:
+                type: array
+                items:
+                  type: string
+        envios_fallidos:
+          type: integer
+          description: Cantidad de envíos que fallaron
+        whatsapp_activo:
+          type: boolean
+          description: True si la integración con WhatsApp está activa

@@ -1,7 +1,9 @@
 """Werken-mapu API — Asistente climático para pequeños agricultores de La Araucanía."""
 
 import hashlib
+import json
 import logging
+import os
 import secrets
 import time
 from contextlib import asynccontextmanager
@@ -442,6 +444,35 @@ async def api_info(request: Request):
         "openapi_url": "/openapi.json",
         "docs_url": "/docs",
     }
+
+
+# ---------------------------------------------------------------------------
+# GET /.well-known/ai-plugin.json — Plugin manifest para GPTs/agentes
+# ---------------------------------------------------------------------------
+@app.get("/.well-known/ai-plugin.json")
+async def ai_plugin_manifest():
+    """Sirve el manifest ai-plugin.json para que GPTs y agentes descubran la API."""
+    plugin_path = os.path.join(os.path.dirname(__file__), "ai-plugin.json")
+    try:
+        with open(plugin_path, encoding="utf-8") as f:
+            return JSONResponse(content=json.load(f))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="ai-plugin.json no encontrado")
+
+
+# ---------------------------------------------------------------------------
+# GET /openapi.yaml — OpenAPI spec estático para agentes que prefieren YAML
+# ---------------------------------------------------------------------------
+@app.get("/openapi.yaml")
+async def openapi_yaml():
+    """Sirve la especificación OpenAPI 3.0 en YAML (alternativa al /openapi.json auto-generado)."""
+    yaml_path = os.path.join(os.path.dirname(__file__), "openapi.yaml")
+    try:
+        with open(yaml_path, encoding="utf-8") as f:
+            content = f.read()
+        return Response(content=content, media_type="application/x-yaml")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="openapi.yaml no encontrado")
 
 
 # ---------------------------------------------------------------------------

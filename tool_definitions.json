@@ -1,0 +1,149 @@
+[
+  {
+    "name": "getClimateAlerts",
+    "description": "Obtiene el pronóstico climático de 7 días para una ubicación en Chile y genera alertas específicas por cultivo (heladas, lluvia intensa, viento fuerte, granizo). Cada alerta incluye tipo, severidad (alta/media/baja), fecha y descripción en español. También retorna un resumen numérico con temperaturas mín/max, lluvia total, viento máximo y días del pronóstico. Usar cuando un agricultor necesite saber si habrá eventos climáticos adversos para sus cultivos en los próximos días.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "lat": {
+          "type": "number",
+          "description": "Latitud de la parcela (decimal, -90 a 90). Ejemplo Temuco: -38.7359",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lon": {
+          "type": "number",
+          "description": "Longitud de la parcela (decimal, -180 a 180). Ejemplo Temuco: -72.5904",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "cultivo": {
+          "type": "string",
+          "enum": ["papa", "trigo", "manzano", "general"],
+          "description": "Cultivo para el análisis de alertas. 'general' es el comodín cuando no se sabe el cultivo específico.",
+          "default": "general"
+        }
+      },
+      "required": ["lat", "lon"]
+    }
+  },
+  {
+    "name": "getCropRecommendations",
+    "description": "Genera recomendaciones agrícolas diarias accionables para un cultivo y ubicación específicos. Responde cuatro preguntas: ¿fumigar? (aplicar pesticidas), ¿regar? (necesidad de riego), ¿sembrar? (condiciones de siembra), ¿cosechar? (momento de cosecha). Cada recomendación incluye: Sí/No/Precaución/Monitorear/Esperar, nivel de confianza (alta/media/baja) y explicación detallada en español. Usar cuando un agricultor pregunte si es buen momento para realizar alguna práctica agrícola específica.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "lat": {
+          "type": "number",
+          "description": "Latitud de la parcela (decimal, -90 a 90)",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lon": {
+          "type": "number",
+          "description": "Longitud de la parcela (decimal, -180 a 180)",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "cultivo": {
+          "type": "string",
+          "enum": ["papa", "trigo", "manzano", "general"],
+          "description": "Cultivo objetivo para las recomendaciones",
+          "default": "general"
+        }
+      },
+      "required": ["lat", "lon"]
+    }
+  },
+  {
+    "name": "getMarketPrices",
+    "description": "Consulta precios de mercado mayorista en Chile desde ODEPA (Oficina de Estudios y Políticas Agrarias del gobierno chileno). Retorna precio actual, rango de últimos 3 meses, tendencia (alza/baja/estable), mercado de referencia y fuente de los datos para cada producto. Productos disponibles: papa, trigo, manzano. Si no se especifica producto, devuelve todos. Usar cuando un agricultor pregunte por precios de venta, tendencias de mercado o quiera comparar precios entre productos.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "producto": {
+          "type": "string",
+          "enum": ["papa", "trigo", "manzano"],
+          "description": "Producto a consultar. Si se omite, devuelve todos los disponibles."
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "name": "askAssistant",
+    "description": "Envía una pregunta en lenguaje natural al asistente IA de Werken-mapu. El asistente usa datos climáticos reales de la ubicación proporcionada para contextualizar su respuesta. Responde preguntas sobre clima, cultivos, prácticas agrícolas, plagas, riego, cosecha, etc. El motor es Llama 3.1 70B (vía Groq) con fallback a modo offline si no está disponible. El campo 'offline' en la respuesta indica el modo usado. Usar cuando el agricultor haga preguntas abiertas que no encajen en los otros endpoints (clima, recomendaciones, precios).",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "pregunta": {
+          "type": "string",
+          "description": "Pregunta del agricultor en español sobre clima, cultivos o prácticas agrícolas. Debe tener entre 3 y 500 caracteres.",
+          "minLength": 3,
+          "maxLength": 500
+        },
+        "lat": {
+          "type": "number",
+          "description": "Latitud de la ubicación de consulta (decimal, -90 a 90)",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lon": {
+          "type": "number",
+          "description": "Longitud de la ubicación de consulta (decimal, -180 a 180)",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "cultivo": {
+          "type": "string",
+          "enum": ["papa", "trigo", "manzano", "general"],
+          "description": "Cultivo sobre el cual se consulta",
+          "default": "general"
+        }
+      },
+      "required": ["pregunta", "lat", "lon"]
+    }
+  },
+  {
+    "name": "getClimateHistory",
+    "description": "Obtiene datos climáticos históricos de 1 a 10 años hacia atrás para una ubicación en Chile. Retorna resúmenes anuales (temperaturas promedio y absolutas, precipitación total, días de lluvia, días de helada, viento máximo) y datos diarios paginados. La paginación usa page y limit (máx 365 días por página). La respuesta incluye total y total_pages para navegar todos los registros. Usar cuando un agricultor pregunte sobre tendencias climáticas de largo plazo, comparaciones entre años, o necesite datos históricos para planificación de siembra/cosecha.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "lat": {
+          "type": "number",
+          "description": "Latitud de la parcela (decimal, -90 a 90)",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lon": {
+          "type": "number",
+          "description": "Longitud de la parcela (decimal, -180 a 180)",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "anos": {
+          "type": "integer",
+          "description": "Años hacia atrás a consultar (1 a 10)",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 5
+        },
+        "page": {
+          "type": "integer",
+          "description": "Número de página para datos diarios. Empieza en 1.",
+          "minimum": 1,
+          "default": 1
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Cantidad de registros diarios por página (1 a 365)",
+          "minimum": 1,
+          "maximum": 365,
+          "default": 90
+        }
+      },
+      "required": ["lat", "lon"]
+    }
+  }
+]
