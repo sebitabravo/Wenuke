@@ -248,6 +248,20 @@ async def init_db() -> None:
     """
     )
 
+    # Índices para queries frecuentes (idempotentes con IF NOT EXISTS en SQLite 3.27+)
+    for idx_sql in [
+        "CREATE INDEX IF NOT EXISTS idx_usuarios_token_hash ON usuarios(token_hash)",
+        "CREATE INDEX IF NOT EXISTS idx_usuarios_whatsapp ON usuarios(whatsapp)",
+        "CREATE INDEX IF NOT EXISTS idx_parcelas_usuario_id ON parcelas(usuario_id)",
+        "CREATE INDEX IF NOT EXISTS idx_cultivos_parcela_id ON cultivos(parcela_id)",
+        "CREATE INDEX IF NOT EXISTS idx_alertas_usuario_id ON alertas_enviadas(usuario_id)",
+        "CREATE INDEX IF NOT EXISTS idx_alertas_tipo ON alertas_enviadas(tipo)",
+    ]:
+        try:
+            await db.execute(idx_sql)
+        except Exception:  # pragma: no cover — SQLite viejo sin IF NOT EXISTS
+            pass
+
     # Migración: agregar columnas que puedan faltar de schema viejo
     try:
         await db.execute("ALTER TABLE usuarios ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'")
@@ -356,12 +370,41 @@ async def actualizar_plan(usuario_id: int, plan: str) -> dict:
 
 
 async def obtener_todos_los_usuarios() -> list[dict]:
-    """Obtiene todos los usuarios con sus parcelas y cultivos."""
+    """Obtiene todos los usuarios con sus parcelas y cultivos (sin N+1)."""
     db = await _get_db()
     usuarios = await db.fetchall("SELECT * FROM usuarios")
+    if not usuarios:
+        return []
+
+    usuarios_ids = [u["id"] for u in usuarios]
+    placeholders = ",".join("?" for _ in usuarios_ids)
+
+    # Batch query: todas las parcelas de todos los usuarios
+    parcelas_raw = await db.fetchall(
+        "SELECT * FROM parcelas WHERE usuario_id IN (" + placeholders + ")",
+        tuple(usuarios_ids),
+    )
+
+    parcelas_ids = [p["id"] for p in parcelas_raw]
+    cultivos_por_parcela: dict[int, list[str]] = {}
+    if parcelas_ids:
+        p_placeholders = ",".join("?" for _ in parcelas_ids)
+        cultivos_raw = await db.fetchall(
+            "SELECT parcela_id, tipo FROM cultivos WHERE parcela_id IN (" + p_placeholders + ")",
+            tuple(parcelas_ids),
+        )
+        for c in cultivos_raw:
+            cultivos_por_parcela.setdefault(c["parcela_id"], []).append(c["tipo"])
+
+    # Indexar parcelas por usuario_id
+    parcelas_por_usuario: dict[int, list[dict]] = {}
+    for p in parcelas_raw:
+        p["cultivos"] = cultivos_por_parcela.get(p["id"], [])
+        parcelas_por_usuario.setdefault(p["usuario_id"], []).append(p)
+
     resultado = []
     for u in usuarios:
-        u["parcelas"] = await _obtener_parcelas_usuario(db, u["id"])
+        u["parcelas"] = parcelas_por_usuario.get(u["id"], [])
         resultado.append(u)
     return resultado
 

@@ -17,6 +17,16 @@ class WhatsAppClient:
         self.token = config.whatsapp_token
         self.phone_number_id = config.whatsapp_phone_number_id
         self.base_url = "https://graph.facebook.com/v21.0"
+        self._client: httpx.AsyncClient | None = None
+
+    def _get_client(self) -> httpx.AsyncClient:
+        """Lazy init del cliente HTTP con pool de conexiones."""
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(
+                timeout=15.0,
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+            )
+        return self._client
 
     @property
     def activo(self) -> bool:
@@ -46,16 +56,16 @@ class WhatsAppClient:
             "text": {"preview_url": False, "body": texto},
         }
 
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            try:
-                r = await client.post(url, json=payload, headers=headers)
-                r.raise_for_status()
-                return {"enviado": True, "wa_message_id": r.json().get("messages", [{}])[0].get("id", "")}
-            except httpx.HTTPError as e:
-                resp = getattr(e, "response", None)
-                detalle = resp.text[:300] if resp else None
-                logger.error(f"WhatsApp API error enviando a {numero_limpio}: {e} — {detalle}")
-                return {"enviado": False, "error": str(e), "detalle": detalle}
+        try:
+            client = self._get_client()
+            r = await client.post(url, json=payload, headers=headers)
+            r.raise_for_status()
+            return {"enviado": True, "wa_message_id": r.json().get("messages", [{}])[0].get("id", "")}
+        except httpx.HTTPError as e:
+            resp = getattr(e, "response", None)
+            detalle = resp.text[:300] if resp else None
+            logger.error(f"WhatsApp API error enviando a {numero_limpio}: {e} — {detalle}")
+            return {"enviado": False, "error": str(e), "detalle": detalle}
 
     async def enviar_plantilla_alerta(self, numero: str, alertas: list[dict], cultivo: str) -> dict:
         """Envía un resumen de alertas formateado para WhatsApp."""

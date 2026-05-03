@@ -184,10 +184,12 @@ async def root():
 # ---------------------------------------------------------------------------
 @app.get("/clima", response_model=ClimaResponse)
 async def clima(
+    request: Request,
     lat: float = Query(..., ge=-90, le=90, description="Latitud de la parcela"),
     lon: float = Query(..., ge=-180, le=180, description="Longitud de la parcela"),
     cultivo: str = Query("general", description="Cultivo: papa, trigo, manzano, general"),
 ):
+    _check_rate_limit(f"clima:{request.client.host if request.client else 'unknown'}", 30)
     if cultivo not in CULTIVOS_VALIDOS:
         raise HTTPException(
             status_code=400,
@@ -445,13 +447,15 @@ async def recomendaciones(
 
 
 # ---------------------------------------------------------------------------
-# GET /historico — Datos climáticos históricos para análisis de tendencias
+# GET /historico — Datos climáticos históricos para análisis de tendencias (con paginación)
 # ---------------------------------------------------------------------------
 @app.get("/historico", response_model=HistoricoResponse)
 async def historico(
     lat: float = Query(..., ge=-90, le=90),
     lon: float = Query(..., ge=-180, le=180),
     anos: int = Query(5, ge=1, le=10),
+    page: int = Query(1, ge=1, description="Página actual"),
+    limit: int = Query(90, ge=1, le=365, description="Días por página"),
 ):
     hoy = date.today()
     inicio = f"{hoy.year - anos}-{hoy.month:02d}-{hoy.day:02d}"
@@ -464,8 +468,14 @@ async def historico(
         raise HTTPException(status_code=502, detail="Error al consultar datos climáticos históricos")
 
     diarios = clima_client.parse_historico(raw)
+    total = len(diarios)
+    total_pages = max(1, (total + limit - 1) // limit)
 
-    # Agregar por año
+    # Paginar datos diarios
+    offset = (page - 1) * limit
+    diarios_paginados = diarios[offset:offset + limit]
+
+    # Agregar por año (usando todos los datos para resumen anual completo)
     agrupado: dict[int, list[dict]] = {}
     for d in diarios:
         ano = int(d["fecha"][:4])
@@ -494,7 +504,11 @@ async def historico(
         ubicacion={"lat": lat, "lon": lon},
         anos_consultados=anos,
         resumen_anual=resumen_anual,
-        datos_diarios=diarios,
+        datos_diarios=diarios_paginados,
+        page=page,
+        limit=limit,
+        total=total,
+        total_pages=total_pages,
     )
 
 

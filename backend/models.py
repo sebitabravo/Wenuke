@@ -416,11 +416,15 @@ class ResumenAnual(BaseModel):
 
 
 class HistoricoResponse(BaseModel):
-    """Respuesta con datos históricos procesados."""
+    """Respuesta con datos históricos procesados y paginación."""
     ubicacion: dict
     anos_consultados: int
     resumen_anual: list[ResumenAnual]
     datos_diarios: list[dict]
+    page: int = 1
+    limit: int = 90
+    total: int = 0
+    total_pages: int = 1
 
     model_config = {"json_schema_extra": {"examples": [{
         "ubicacion": {"lat": -38.7359, "lon": -72.5904},
@@ -431,6 +435,10 @@ class HistoricoResponse(BaseModel):
             "dias_lluvia": 120, "dias_helada": 15, "viento_max": 55.0,
         }],
         "datos_diarios": [],
+        "page": 1,
+        "limit": 90,
+        "total": 1826,
+        "total_pages": 21,
     }]}}
 
 
