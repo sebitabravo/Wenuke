@@ -18,10 +18,16 @@
 | Chat demo | [frontend-lac-eight-97.vercel.app/app](https://frontend-lac-eight-97.vercel.app/app) |
 | API docs | [backend-beryl-nu-18.vercel.app/docs](https://backend-beryl-nu-18.vercel.app/docs) |
 
-| | |
-|---|---|
-| ![Landing](docs/screenshots/landing-page-full.png) | ![Chat](docs/screenshots/wenuke-clima-consulta.png) |
-| ![Cultivo](docs/screenshots/wenuke-papa-selected.png) | ![IA](docs/screenshots/wenuke-pregunta-fumigar.png) |
+<table>
+<tr>
+  <td><img src="docs/screenshots/prod-landing.png" height="280" alt="Landing page"></td>
+  <td><img src="docs/screenshots/prod-demo-clima.png" height="280" alt="Demo chat con pronóstico"></td>
+</tr>
+<tr>
+  <td><img src="docs/screenshots/wenuke-papa-selected.png" height="280" alt="Selección de cultivo"></td>
+  <td><img src="docs/screenshots/wenuke-pregunta-fumigar.png" height="280" alt="Recomendación de fumigación por IA"></td>
+</tr>
+</table>
 
 ## El problema
 
