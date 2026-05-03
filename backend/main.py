@@ -5,7 +5,7 @@ import logging
 import secrets
 import time
 from contextlib import asynccontextmanager
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import cast
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
@@ -106,7 +106,7 @@ async def auth_usuario(authorization: str = Header(..., description="Bearer <tok
     expires_at = usuario.get("token_expires_at")
     if expires_at:
         expires_dt = datetime.fromisoformat(expires_at)
-        if expires_dt < datetime.now(datetime.UTC):
+        if expires_dt < datetime.now(UTC):
             raise HTTPException(status_code=401, detail="Token expirado. Volvé a registrarte.")
     return usuario
 
