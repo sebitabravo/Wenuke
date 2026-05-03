@@ -1,12 +1,23 @@
 {
   "name": "wenuke",
   "version": "1.0.0",
-  "description": "Asistente climatico con IA para pequenos agricultores de La Araucania, Chile. Accesible via web (y WhatsApp en produccion), entrega alertas anticipadas y recomendaciones especificas por cultivo sin necesidad de descargar apps.",
+  "description": "Asistente climático agrícola por WhatsApp para pequeños agricultores de Chile. Alertas de helada/lluvia/granizo, recomendaciones por cultivo e IA conversacional. Sin apps.",
   "scripts": {
     "test": "cd backend && pytest"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "whatsapp-bot",
+    "agriculture",
+    "climate",
+    "fastapi",
+    "chile",
+    "small-farmers",
+    "weather-alerts",
+    "llm",
+    "groq",
+    "openmeteo"
+  ],
+  "author": "Sebastian Bravo <sebitabravo@proton.me>",
   "license": "MIT",
   "dependencies": {
     "@playwright/test": "^1.59.1"

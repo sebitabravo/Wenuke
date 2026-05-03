@@ -7,6 +7,26 @@
 [![API](https://img.shields.io/badge/API-live-blue)](https://backend-beryl-nu-18.vercel.app)
 [![CI](https://github.com/sebitabravo/Wenuke/actions/workflows/test.yml/badge.svg)](https://github.com/sebitabravo/Wenuke/actions/workflows/test.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-teal)](https://fastapi.tiangolo.com)
+
+## Demo en vivo
+
+| Entorno | URL |
+|---|---|
+| **Landing page** | [frontend-lac-eight-97.vercel.app](https://frontend-lac-eight-97.vercel.app) |
+| **Demo chat** | [frontend-lac-eight-97.vercel.app/app](https://frontend-lac-eight-97.vercel.app/app) |
+| **API Docs** | [backend-beryl-nu-18.vercel.app/docs](https://backend-beryl-nu-18.vercel.app/docs) |
+
+### Capturas
+
+| Landing | Chat demo |
+|---|---|
+| ![Landing](docs/screenshots/landing-page-full.png) | ![Chat](docs/screenshots/wenuke-clima-consulta.png) |
+
+| Selección de cultivo | Recomendación IA |
+|---|---|
+| ![Cultivo](docs/screenshots/wenuke-papa-selected.png) | ![IA](docs/screenshots/wenuke-pregunta-fumigar.png) |
 
 ---
 
@@ -135,15 +155,20 @@ Wenuke/
 │   ├── scheduler.py             # Loop asyncio cada 6h para chequeo automático
 │   ├── db.py                    # Dual backend Turso/aiosqlite — interfaz unificada (470 LOC)
 │   ├── config.py                # Configuración tipada desde variables de entorno
+│   ├── .env.example             # Variables de entorno de referencia
 │   ├── requirements.txt
 │   ├── vercel.json
 │   └── tests/
 │       ├── e2e/
 │       │   ├── test_e2e_api.py       # 9 tests httpx contra prod
 │       │   └── test_e2e_playwright.py # 13 tests browser contra prod
-│       └── test_*.py                  # Tests unitarios
+│       └── test_*.py                  # Tests unitarios (reglas, clima)
+├── docs/
+│   ├── screenshots/              # Capturas de pantalla
+│   ├── pitch.pdf                 # Deck de presentación
+│   └── pitch-2.pdf               # Deck complementario
 ├── DESIGN.md                    # Design system (Stitch/awesome-design-md)
-├── docs/                        # Pitch decks
+├── CONTRIBUTING.md              # Guía de contribución
 └── .github/workflows/test.yml   # CI: ruff + mypy + pytest
 ```
 
@@ -256,9 +281,10 @@ El chat demo es una SPA de una sola pantalla. React habría agregado ~40KB de JS
 
 Para un producto real con múltiples pantallas y lógica de suscripción, React con Next.js sería la elección correcta — pero para MVP de hackathon, vanilla JS es la decisión consciente.
 
-### ¿Por qué no hay tests del motor de reglas?
 
-Las reglas agronómicas (442 LOC de lógica pura, cero I/O) son el core del dominio y deberían tener >90% de cobertura. Los tests existen para los endpoints (E2E) y el resto del backend (unitarios), pero `reglas.py` merece su propia suite de tests parametrizados con fixtures de forecast simulados. Está identificado como mejora prioritaria.
+### Cobertura de tests
+
+El motor de reglas (`reglas.py`, 442 LOC, dominio puro) tiene **20+ tests unitarios** cubriendo severidades de helada/lluvia/viento/granizo, detección de alertas por cultivo, y generación de recomendaciones (fumigar/regar/sembrar/cosechar). Cliente de clima con tests de parseo y cache. API con tests E2E (`httpx` + `playwright`). CI corre ruff + mypy + pytest en cada push.
 
 ---
 
