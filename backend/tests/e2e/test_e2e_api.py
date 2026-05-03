@@ -3,7 +3,6 @@
 import random
 
 import httpx
-import pytest
 
 API_URL = "https://backend-beryl-nu-18.vercel.app"
 
