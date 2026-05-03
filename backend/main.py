@@ -12,6 +12,7 @@ from typing import cast
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse, Response
 
@@ -170,6 +171,51 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+# Compresion GZip para respuestas JSON > 500 bytes
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+
+# ---------------------------------------------------------------------------
+# Cache-Control middleware — headers para IAs y browsers
+# ---------------------------------------------------------------------------
+
+# Endpoints cuyos datos cambian cada ~1 hora (datos climaticos)
+_CACHE_1H = {"/clima", "/recomendaciones"}
+
+# Endpoints cuyos datos cambian a diario
+_CACHE_24H = {"/precios", "/historico"}
+
+
+class CacheHeadersMiddleware(BaseHTTPMiddleware):
+    """Inyecta Cache-Control segun endpoint y metodo HTTP.
+
+    GET de endpoints climaticos: cache 1h con stale-while-revalidate 10min.
+    GET de endpoints de precios/historico: cache 24h con SWR 1h.
+    Mutaciones y health: no-cache.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+
+        if request.method != "GET":
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            return response
+
+        path = request.url.path
+        if path in _CACHE_1H:
+            response.headers["Cache-Control"] = (
+                "public, max-age=3600, stale-while-revalidate=600"
+            )
+        elif path in _CACHE_24H:
+            response.headers["Cache-Control"] = (
+                "public, max-age=86400, stale-while-revalidate=3600"
+            )
+
+        return response
+
+
+app.add_middleware(CacheHeadersMiddleware)
 
 
 # ---------------------------------------------------------------------------
