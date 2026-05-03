@@ -220,6 +220,7 @@
     <div class="hidden md:flex items-center gap-6 text-sm font-medium text-white/80">
       <a href="#como-funciona" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="nav-link-como-funciona">Cómo funciona</a>
       <a href="#planes" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="nav-link-planes">Planes</a>
+      <a href="#faq" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="nav-link-faq">FAQ</a>
       <a href="#contacto" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="nav-link-contacto">Contacto</a>
       <a href="app.html" class="bg-white/20 hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-wa-light px-4 py-2 rounded-full transition-colors text-white" data-testid="nav-btn-probar-demo">Probar Demo</a>
     </div>
@@ -229,11 +230,13 @@
     <div class="flex flex-col lg:flex-row items-center gap-8 lg:gap-10">
     <div class="flex-1 animate-in delay-1">
       <p class="text-green-200 text-sm font-semibold tracking-wider uppercase mb-3">La Araucanía, Chile</p>
-      <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
-        El mensajero<br class="hidden md:block"> de la tierra
+      <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-3">
+        Asistente climático por WhatsApp<br class="hidden md:block"> para pequeños agricultores
       </h1>
+      <p class="text-green-200 text-lg md:text-xl mb-2">El mensajero de la tierra</p>
       <p class="text-lg md:text-xl text-white/80 mb-8 max-w-lg">
-        Asistente climático por WhatsApp que avisa 72 horas antes de heladas, lluvias y granizo.
+        Alertas 72 horas antes de heladas, lluvias y granizo.
+        Recomendaciones diarias de fumigación, riego y cosecha.
         Sin apps, sin sensores. Solo información a tiempo para tu parcela.
       </p>
       <div class="flex flex-col sm:flex-row gap-3">
@@ -245,7 +248,7 @@
         </a>
       </div>
     </div>
-    <div class="flex flex-col sm:flex-row gap-4 lg:gap-5 justify-center animate-in delay-2">
+    <div class="flex flex-col sm:flex-row gap-4 lg:gap-5 justify-center animate-in delay-2" aria-hidden="true">
 
       <!-- Phone 1: Chat Experience -->
       <div class="relative w-64 h-[500px] bg-white rounded-[2.5rem] shadow-2xl border-[3px] border-gray-800 overflow-hidden flex-shrink-0 mx-auto sm:mx-0 flex flex-col">
@@ -484,7 +487,7 @@
           </li>
         </ul>
       </div>
-      <div class="flex-1 flex justify-center animate-in delay-2">
+      <div class="flex-1 flex justify-center animate-in delay-2" aria-hidden="true">
         <div class="bg-white rounded-2xl shadow-xl p-8 max-w-sm border border-gray-100">
           <div class="flex items-center gap-3 mb-6">
             <span class="text-3xl">📱</span>
@@ -566,8 +569,8 @@
   <div class="max-w-6xl mx-auto px-4">
     <div class="text-center mb-12">
       <p class="text-wa-medium font-semibold text-sm tracking-wider uppercase mb-2">Planes</p>
-      <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Simple, transparente, justo</h2>
-      <p class="text-gray-500 max-w-xl mx-auto">El plan libre informa. El plan premium acompaña cada decisión.</p>
+      <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Plan Libre gratis para siempre · Plan Premium a $3.000 CLP/mes</h2>
+      <p class="text-gray-500 max-w-xl mx-auto">El plan libre incluye alertas básicas, 1 parcela y pronóstico a 7 días sin costo. El plan premium suma asistente IA 24/7, recomendaciones por cultivo, precios de mercado ODEPA e historial climático.</p>
     </div>
 
     <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
@@ -662,6 +665,53 @@
           Hablar con ventas
         </a>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FAQ ==================== -->
+<section id="faq" class="bg-white py-16 md:py-20">
+  <div class="max-w-3xl mx-auto px-4">
+    <div class="text-center mb-12">
+      <p class="text-wa-medium font-semibold text-sm tracking-wider uppercase mb-2">Preguntas frecuentes</p>
+      <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Respuestas directas, sin letra chica</h2>
+    </div>
+
+    <div class="space-y-6">
+      <article>
+        <h3 class="font-bold text-lg text-gray-900 mb-2">¿Necesito instalar una app para usar Werken-mapu?</h3>
+        <p class="text-gray-600">No. Werken-mapu funciona completamente por WhatsApp. No hay que descargar ninguna aplicación, crear una cuenta con contraseña ni instalar sensores en la parcela. Solo necesitás un teléfono con WhatsApp — que ya tenés — y compartir tu ubicación.</p>
+      </article>
+
+      <article>
+        <h3 class="font-bold text-lg text-gray-900 mb-2">¿El plan libre realmente es gratis para siempre?</h3>
+        <p class="text-gray-600">Sí. El Plan Libre incluye alertas básicas de helada, lluvia y viento para una parcela, con pronóstico a 7 días. Sin costo, sin tarjeta de crédito, sin letra chica. Si algún día necesitás más funcionalidades, podés pasar al Plan Premium.</p>
+      </article>
+
+      <article>
+        <h3 class="font-bold text-lg text-gray-900 mb-2">¿Cuánto cuesta el Plan Premium?</h3>
+        <p class="text-gray-600">$3.000 CLP por mes (aproximadamente $3 USD). Incluye múltiples parcelas (hasta 10), recomendaciones personalizadas por cultivo, asistente IA conversacional 24/7, precios de mercado ODEPA e historial climático de 5-10 años. Sin contratos, cancelás cuando quieras.</p>
+      </article>
+
+      <article>
+        <h3 class="font-bold text-lg text-gray-900 mb-2">¿Qué tan precisas son las alertas climáticas?</h3>
+        <p class="text-gray-600">Usamos datos del modelo meteorológico global OpenMeteo con las coordenadas GPS exactas de tu parcela. Esto es mucho más preciso que el pronóstico genérico de la televisión, que usa datos de la ciudad más cercana. Las alertas llegan con 48 a 72 horas de anticipación.</p>
+      </article>
+
+      <article>
+        <h3 class="font-bold text-lg text-gray-900 mb-2">¿Puedo usar Werken-mapu si tengo varios cultivos o más de una parcela?</h3>
+        <p class="text-gray-600">Sí. En el Plan Premium podés registrar hasta 10 parcelas distintas, cada una con sus propios cultivos (papa, trigo, manzano). Las alertas y recomendaciones se personalizan para cada parcela y cultivo por separado.</p>
+      </article>
+
+      <article>
+        <h3 class="font-bold text-lg text-gray-900 mb-2">¿Tienen planes para cooperativas o PRODESAL?</h3>
+        <p class="text-gray-600">Sí. Ofrecemos paquetes B2B para 100-500 agricultores a $1.500 CLP/mes por agricultor, pagado por la cooperativa o INDAP. Incluye administración centralizada, reportes de uso y el mismo beneficio premium para cada agricultor.</p>
+      </article>
+
+      <article>
+        <h3 class="font-bold text-lg text-gray-900 mb-2">¿Qué cultivos soportan?</h3>
+        <p class="text-gray-600">Papa, trigo, manzano y perfil general (aplica a cualquier cultivo). Cada perfil ajusta los umbrales de alerta y las recomendaciones según las necesidades específicas del cultivo. Por ejemplo, una helada afecta distinto a la papa en floración que al trigo recién sembrado.</p>
+      </article>
     </div>
   </div>
 </section>
@@ -827,6 +877,7 @@
       <nav aria-label="Enlaces del pie de página" class="flex gap-8 text-sm text-gray-300">
         <a href="#como-funciona" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="footer-link-como-funciona">Cómo funciona</a>
         <a href="#planes" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="footer-link-planes">Planes</a>
+        <a href="#faq" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="footer-link-faq">FAQ</a>
         <a href="#contacto" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="footer-link-contacto">Contacto</a>
         <a href="app.html" class="hover:text-white focus:outline-none focus:ring-2 focus:ring-wa-light focus:text-white transition-colors rounded" data-testid="footer-link-app">App</a>
       </nav>

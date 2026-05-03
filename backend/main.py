@@ -11,7 +11,7 @@ from typing import cast
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 
 from clima import clima_client
 from config import config
@@ -171,6 +171,30 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
+# Manejador global de errores con formato amigable para IAs
+# ---------------------------------------------------------------------------
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Convierte errores HTTP a JSON con `error`, `code` y `suggestion` para IAs."""
+    suggestions: dict[int, str] = {
+        400: "Revisa los parámetros de tu request. Los valores enviados no son válidos.",
+        401: "Tu token expiró o es inválido. Usa /registrar para obtener uno nuevo o /refresh-token para rotarlo.",
+        403: "No tenés permiso para esta operación. Verificá tu plan (free/premium) o tus parcelas.",
+        404: "El recurso no existe o no pertenece a tu usuario.",
+        409: "El recurso ya existe. Probablemente el WhatsApp ya está registrado.",
+        429: "Excediste el límite de requests. Esperá un minuto y reintentá.",
+    }
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": exc.detail,
+            "code": f"HTTP_{exc.status_code}",
+            "suggestion": suggestions.get(exc.status_code, "Error inesperado. Reintentá o contactá soporte."),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
 @app.get("/")
@@ -219,6 +243,204 @@ async def root():
         "estado": "operativo" if all_ok else "degradado",
         "checks": checks,
         "offline": llm_client.modo_offline,
+    }
+
+
+# ---------------------------------------------------------------------------
+# GET /api/info — Metadata de la API para agentes de IA
+# ---------------------------------------------------------------------------
+@app.get("/api/info")
+async def api_info(request: Request):
+    """Describe la API en términos que un agente de IA puede interpretar.
+
+    Incluye endpoints disponibles, formatos de request/response, auth requerida,
+    cultivos soportados, planes, rate limits y ejemplos de uso.
+    """
+    return {
+        "api_name": "Werken-mapu",
+        "version": "1.0.0",
+        "description": "Asistente climático con IA para pequeños agricultores de La Araucanía, Chile. "
+                       "Proporciona pronóstico del tiempo, alertas de heladas/lluvia/viento/granizo, "
+                       "recomendaciones agrícolas diarias, precios de mercado mayorista, y un asistente "
+                       "conversacional con conocimiento agronómico.",
+        "base_url": str(request.base_url).rstrip("/"),
+        "contact": {"email": "sebitabravo@gmail.com"},
+        "endpoints": [
+            {
+                "path": "/clima",
+                "method": "GET",
+                "auth_required": False,
+                "description": "Pronóstico climático de 7 días con alertas específicas por cultivo. "
+                               "Detecta heladas, lluvia intensa, viento fuerte y granizo.",
+                "parameters": {
+                    "lat": {"type": "float", "required": True, "range": [-90, 90], "description": "Latitud de la parcela"},
+                    "lon": {"type": "float", "required": True, "range": [-180, 180], "description": "Longitud de la parcela"},
+                    "cultivo": {"type": "string", "required": False, "default": "general", "options": ["papa", "trigo", "manzano", "general"]},
+                },
+                "rate_limit": "30 req/min por IP",
+                "example_curl": "curl 'https://backend-beryl-nu-18.vercel.app/clima?lat=-38.7359&lon=-72.5904&cultivo=papa'",
+            },
+            {
+                "path": "/recomendaciones",
+                "method": "GET",
+                "auth_required": False,
+                "description": "Recomendaciones agrícolas diarias accionables: si fumigar, regar, sembrar o cosechar "
+                               "según las condiciones climáticas actuales y el cultivo.",
+                "parameters": {
+                    "lat": {"type": "float", "required": True, "range": [-90, 90]},
+                    "lon": {"type": "float", "required": True, "range": [-180, 180]},
+                    "cultivo": {"type": "string", "required": False, "default": "general", "options": ["papa", "trigo", "manzano", "general"]},
+                },
+                "rate_limit": "Sin límite",
+                "example_curl": "curl 'https://backend-beryl-nu-18.vercel.app/recomendaciones?lat=-38.7359&lon=-72.5904&cultivo=papa'",
+            },
+            {
+                "path": "/precios",
+                "method": "GET",
+                "auth_required": False,
+                "description": "Precios mayoristas de productos agrícolas desde ODEPA (gobierno chileno). "
+                               "Incluye tendencia de precios y rango de últimos 3 meses.",
+                "parameters": {
+                    "producto": {"type": "string", "required": False, "options": ["papa", "trigo", "manzano"], "description": "Filtrar por producto. Si no se especifica, devuelve todos."},
+                },
+                "rate_limit": "Sin límite",
+                "example_curl": "curl 'https://backend-beryl-nu-18.vercel.app/precios?producto=papa'",
+            },
+            {
+                "path": "/preguntar",
+                "method": "POST",
+                "auth_required": False,
+                "description": "Asistente conversacional con IA (Llama 3.1 70B vía Groq) que responde preguntas "
+                               "sobre clima, cultivos y prácticas agrícolas usando datos climáticos reales de la ubicación.",
+                "body": {
+                    "pregunta": {"type": "string", "required": True, "min_length": 3, "max_length": 500},
+                    "lat": {"type": "float", "required": True},
+                    "lon": {"type": "float", "required": True},
+                    "cultivo": {"type": "string", "required": False, "default": "general"},
+                },
+                "rate_limit": "10 req/min por IP",
+                "example_curl": "curl -X POST 'https://backend-beryl-nu-18.vercel.app/preguntar' -H 'Content-Type: application/json' -d '{\"pregunta\":\"¿Debo regar hoy?\",\"lat\":-38.7359,\"lon\":-72.5904,\"cultivo\":\"papa\"}'",
+            },
+            {
+                "path": "/historico",
+                "method": "GET",
+                "auth_required": False,
+                "description": "Datos climáticos históricos de 1 a 10 años hacia atrás. Incluye resúmenes anuales "
+                               "(temperaturas, precipitación, días de helada) y datos diarios paginados.",
+                "parameters": {
+                    "lat": {"type": "float", "required": True},
+                    "lon": {"type": "float", "required": True},
+                    "anos": {"type": "int", "required": False, "default": 5, "range": [1, 10]},
+                    "page": {"type": "int", "required": False, "default": 1, "min": 1},
+                    "limit": {"type": "int", "required": False, "default": 90, "range": [1, 365]},
+                },
+                "pagination": "limit/offset con page y limit. Respuesta incluye total y total_pages.",
+                "rate_limit": "Sin límite",
+                "example_curl": "curl 'https://backend-beryl-nu-18.vercel.app/historico?lat=-38.7359&lon=-72.5904&anos=5&page=1&limit=90'",
+            },
+            {
+                "path": "/registrar",
+                "method": "POST",
+                "auth_required": False,
+                "description": "Registra un nuevo agricultor. Retorna un token de autenticación (Bearer) que debe "
+                               "guardarse y usarse en endpoints autenticados. El token expira en 90 días.",
+                "body": {
+                    "whatsapp": {"type": "string", "required": True, "format": "+56912345678 (chileno)"},
+                    "nombre": {"type": "string", "required": True, "min_length": 2},
+                    "lat": {"type": "float", "required": True},
+                    "lon": {"type": "float", "required": True},
+                    "cultivos": {"type": "array[string]", "required": True, "options": ["papa", "trigo", "manzano", "general"]},
+                    "plan": {"type": "string", "required": False, "default": "free", "options": ["free", "premium"]},
+                    "nombre_parcela": {"type": "string", "required": False, "default": "Parcela 1"},
+                },
+                "rate_limit": "3 req/min por IP",
+                "example_curl": "curl -X POST 'https://backend-beryl-nu-18.vercel.app/registrar' -H 'Content-Type: application/json' -d '{\"whatsapp\":\"+56912345678\",\"nombre\":\"Juan\",\"lat\":-38.7,\"lon\":-72.6,\"cultivos\":[\"papa\"],\"plan\":\"free\",\"nombre_parcela\":\"Mi Parcela\"}'",
+            },
+            {
+                "path": "/parcelas",
+                "method": "GET",
+                "auth_required": True,
+                "description": "Lista las parcelas del usuario autenticado.",
+                "auth_header": "Authorization: Bearer <token>",
+                "rate_limit": "Sin límite",
+            },
+            {
+                "path": "/parcelas",
+                "method": "POST",
+                "auth_required": True,
+                "description": "Crea una nueva parcela para el usuario. Límite: 1 en plan free, 10 en premium.",
+                "auth_header": "Authorization: Bearer <token>",
+                "rate_limit": "Sin límite",
+            },
+            {
+                "path": "/parcelas/{parcela_id}",
+                "method": "DELETE",
+                "auth_required": True,
+                "description": "Elimina una parcela del usuario (valida propiedad).",
+                "auth_header": "Authorization: Bearer <token>",
+                "rate_limit": "Sin límite",
+            },
+            {
+                "path": "/plan",
+                "method": "GET",
+                "auth_required": True,
+                "description": "Consulta el plan actual del usuario y uso de parcelas.",
+                "auth_header": "Authorization: Bearer <token>",
+                "rate_limit": "Sin límite",
+            },
+            {
+                "path": "/plan",
+                "method": "POST",
+                "auth_required": True,
+                "description": "Cambia el plan del usuario (free ↔ premium).",
+                "auth_header": "Authorization: Bearer <token>",
+                "rate_limit": "Sin límite",
+            },
+            {
+                "path": "/refresh-token",
+                "method": "POST",
+                "auth_required": True,
+                "description": "Rota el token de autenticación. El token viejo deja de funcionar.",
+                "auth_header": "Authorization: Bearer <token>",
+                "rate_limit": "Sin límite",
+            },
+            {
+                "path": "/enviar-alertas",
+                "method": "POST",
+                "auth_required": True,
+                "description": "Dispara envío manual de alertas vía WhatsApp a todos los agricultores afectados. "
+                               "Requiere token de administrador.",
+                "auth_header": "Authorization: Bearer <admin_token>",
+                "rate_limit": "Sin límite",
+            },
+        ],
+        "authentication": {
+            "type": "bearer_token",
+            "description": "Token generado en /registrar, almacenado como hash SHA-256. "
+                           "Expira a los 90 días. Usar /refresh-token para rotar.",
+            "header": "Authorization: Bearer <token>",
+            "admin_header": "Authorization: Bearer <admin_token>",
+        },
+        "error_format": {
+            "description": "Todos los errores siguen este formato para que una IA pueda interpretarlos automáticamente.",
+            "schema": {
+                "error": "Descripción humana del error",
+                "code": "Código de error (HTTP_400, HTTP_401, etc.)",
+                "suggestion": "Sugerencia accionable para corregir el error",
+            },
+            "example": {
+                "error": "Cultivo 'tomate' no soportado. Usar: papa, trigo, manzano, general",
+                "code": "HTTP_400",
+                "suggestion": "Revisa los parámetros de tu request. Los valores enviados no son válidos.",
+            },
+        },
+        "supported_crops": ["papa", "trigo", "manzano", "general"],
+        "plans": {
+            "free": {"parcelas_max": 1, "features": ["alertas básicas", "pronóstico 7 días", "WhatsApp + web"]},
+            "premium": {"parcelas_max": 10, "features": ["alertas personalizadas por cultivo", "asistente IA", "recomendaciones diarias", "precios de mercado", "historial climático 5-10 años"]},
+        },
+        "openapi_url": "/openapi.json",
+        "docs_url": "/docs",
     }
 
 

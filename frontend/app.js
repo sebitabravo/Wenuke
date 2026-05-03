@@ -102,6 +102,7 @@ function selectCrop(cultivo) {
   state.cultivo = cultivo;
   document.querySelectorAll('.cultivo-btn').forEach(b => {
     const sel = b.dataset.cultivo === cultivo;
+    b.setAttribute('aria-pressed', sel ? 'true' : 'false');
     if (sel) {
       b.classList.add('cultivo-active', ...CULTIVO_ACTIVE_CLS);
       b.classList.remove(...CULTIVO_INACTIVE_CLS);
@@ -209,7 +210,7 @@ function addMsg(type, text) {
     const bubble = _el('div', 'bg-[#d9fdd3] rounded-lg rounded-br-none px-4 py-2.5 max-w-[80%] shadow-sm');
     const p = _el('p', 'text-sm text-gray-800 whitespace-pre-wrap');
     _safeText(p, text);
-    const ts = _el('span', 'text-[10px] text-gray-400 float-right ml-4 mt-1');
+    const ts = _el('span', 'text-[10px] text-gray-500 float-right ml-4 mt-1');
     _safeText(ts, now());
     bubble.append(p, ts);
     row.append(bubble);
@@ -220,7 +221,7 @@ function addMsg(type, text) {
     const p = _el('p', 'text-sm text-gray-800 whitespace-pre-wrap');
     // fmt() aplica esc() primero, luego parsea **bold** → HTML seguro
     _safeHTML(p, fmt(text));
-    const ts = _el('span', 'text-[10px] text-gray-400 block mt-1');
+    const ts = _el('span', 'text-[10px] text-gray-500 block mt-1');
     _safeText(ts, now());
     bubble.append(p, ts);
     row.append(avatar, bubble);
@@ -317,7 +318,7 @@ function renderClima(data) {
 
 // ─── Utilidades ──────────────────────────────────────────────────
 function scrollDown() {
-  const el = document.getElementById('chat-scroll');
+  const el = document.getElementById('main-chat');
   requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
 }
 
