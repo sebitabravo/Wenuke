@@ -8,6 +8,9 @@ groq>=0.15.0,<0.16.0
 aiosqlite>=0.20.0
 libsql-experimental>=0.0.40
 
+# Configuración externa
+pyyaml>=6.0,<7.0.0
+
 # Dev / tests
 pytest>=8.0
 pytest-asyncio>=0.23.0

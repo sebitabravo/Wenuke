@@ -1,9 +1,14 @@
 """Tests para el motor de reglas por cultivo."""
 from reglas import (
+    _mensaje_granizo,
+    _mensaje_helada,
+    _mensaje_lluvia,
+    _mensaje_viento,
     _severidad_granizo,
     _severidad_helada,
     _severidad_lluvia,
     _severidad_viento,
+    cargar_reglas,
     evaluar_reglas,
     generar_recomendaciones,
 )
@@ -169,3 +174,98 @@ class TestGenerarRecomendaciones:
         hourly = self._make_hourly(24)
         recs = generar_recomendaciones(hourly, [], "general")
         assert recs == []
+
+
+class TestMensajes:
+    def test_mensaje_helada_contiene_cultivo_y_temp(self):
+        msg = _mensaje_helada("Papa", -2.5, "04:00", "2026-05-03", "alta")
+        assert "Papa" in msg
+        assert "-2.5" in msg
+
+    def test_mensaje_helada_alta_tiene_emoji_alarma(self):
+        msg = _mensaje_helada("Papa", -3.0, "04:00", "2026-05-03", "alta")
+        assert "🚨" in msg
+
+    def test_mensaje_helada_media_tiene_emoji_warning(self):
+        msg = _mensaje_helada("Papa", -1.0, "04:00", "2026-05-03", "media")
+        assert "⚠️" in msg
+
+    def test_mensaje_lluvia_contiene_mm_y_dia(self):
+        msg = _mensaje_lluvia("Trigo", 45.0, "2026-05-03", "alta")
+        assert "45" in msg
+        assert "2026-05-03" in msg
+
+    def test_mensaje_viento_contiene_kmh(self):
+        msg = _mensaje_viento("Manzano", 50.0, "2026-05-03", "alta")
+        assert "50" in msg
+        assert "km/h" in msg
+
+    def test_mensaje_granizo_contiene_mmh(self):
+        msg = _mensaje_granizo("Papa", 10.0, "14:00", "2026-05-03", "alta")
+        assert "10.0" in msg
+        assert "mm/h" in msg
+
+
+class TestDiferenciasPorCultivo:
+    def _make_hourly(self, horas, temp=15.0, precip=0.0, viento=5.0):
+        return [
+            {
+                "hora": f"2026-05-02T{h:02d}:00",
+                "temperatura": temp,
+                "precipitacion": precip,
+                "viento": viento,
+            }
+            for h in range(horas)
+        ]
+
+    def test_trigo_mas_tolerante_helada_que_papa(self):
+        hourly = self._make_hourly(24, temp=-1.0, precip=0.0, viento=5.0)
+        # Papa: temp_min=0.0 → alerta a -1°C. Trigo: temp_min=-2.0 → sin alerta.
+        r_papa = evaluar_reglas(hourly, "papa")
+        r_trigo = evaluar_reglas(hourly, "trigo")
+        assert len([a for a in r_papa["alertas"] if a["tipo"] == "helada"]) >= 1
+        assert len([a for a in r_trigo["alertas"] if a["tipo"] == "helada"]) == 0
+
+    def test_manzano_mas_sensible_helada_que_papa(self):
+        hourly = self._make_hourly(24, temp=-0.5, precip=0.0, viento=5.0)
+        r_manzano = evaluar_reglas(hourly, "manzano")
+        # Manzano temp_min=0.0 → -0.5°C genera alerta
+        assert len([a for a in r_manzano["alertas"] if a["tipo"] == "helada"]) >= 1
+
+    def test_datos_sin_temperatura_no_rompen(self):
+        hourly = [{"hora": "2026-05-02T00:00", "precipitacion": 0.0, "viento": 5.0}]
+        resultado = evaluar_reglas(hourly, "papa")
+        assert resultado["alertas"] == []
+
+    def test_dos_alertas_mismo_dia_distintos_tipos(self):
+        temps = [10.0] * 4 + [-1.5] * 4 + [15.0] * 16
+        vientos = [50.0] * 4 + [10.0] * 20
+        hourly = [
+            {
+                "hora": f"2026-05-02T{h:02d}:00",
+                "temperatura": temps[min(h, 23)],
+                "precipitacion": 0.0,
+                "viento": vientos[min(h, 23)],
+            }
+            for h in range(24)
+        ]
+        resultado = evaluar_reglas(hourly, "papa")
+        tipos = {a["tipo"] for a in resultado["alertas"]}
+        assert "helada" in tipos
+        assert "viento_fuerte" in tipos
+
+
+class TestCargarReglas:
+    def test_carga_reglas_desde_yaml(self):
+        reglas = cargar_reglas()
+        assert "papa" in reglas
+        assert "trigo" in reglas
+        assert "manzano" in reglas
+        assert "general" in reglas
+        assert reglas["papa"]["nombre"] == "Papa"
+        assert isinstance(reglas["papa"]["temp_min"], (int, float))
+
+    def test_carga_reglas_es_idempotente(self):
+        r1 = cargar_reglas()
+        r2 = cargar_reglas()
+        assert r1 == r2

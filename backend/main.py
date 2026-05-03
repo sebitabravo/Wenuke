@@ -28,6 +28,7 @@ from db import (
     refresh_token as db_refresh_token,
 )
 from llm import llm_client
+from logging_config import configurar_logging
 from models import (
     ActualizarPlanRequest,
     ClimaResponse,
@@ -48,14 +49,12 @@ from models import (
     ResumenAnual,
 )
 from odepa import odepa_client
-from reglas import Cultivo, evaluar_reglas, generar_recomendaciones
+from reglas import Cultivo, generar_recomendaciones
 from scheduler import alert_scheduler
 from servicio_alertas import ejecutar_chequeo_alertas
+from servicios import obtener_contexto_clima
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-)
+configurar_logging()
 logger = logging.getLogger("wenuke.main")
 
 CULTIVOS_VALIDOS = {"papa", "trigo", "manzano", "general"}
@@ -150,8 +149,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="Werken-mapu API",
     description="Werken-mapu — Asistente climático con IA para pequeños agricultores de La Araucanía",
-    version="0.1.0",
+    version="1.0.0",
     lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 app.add_middleware(SecurityHeadersMiddleware)
@@ -171,10 +172,49 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 @app.get("/")
 async def root():
+    """Health check con verificación de dependencias externas."""
+    checks: dict[str, str] = {}
+
+    # Verificar Turso / SQLite
+    try:
+        from db import _get_db
+        db = await _get_db()
+        await db.fetchone("SELECT 1")
+        checks["db"] = "ok"
+    except Exception as e:
+        checks["db"] = f"error: {e}"
+
+    # Verificar OpenMeteo
+    try:
+        client = clima_client._get_client()
+        r = await client.get(f"{config.openmeteo_base_url}/forecast", params={
+            "latitude": -38.7359, "longitude": -72.5904,
+            "hourly": "temperature_2m", "forecast_days": 1,
+        })
+        checks["openmeteo"] = "ok" if r.status_code == 200 else f"error: HTTP {r.status_code}"
+    except Exception as e:
+        checks["openmeteo"] = f"error: {e}"
+
+    # Verificar Groq (si está configurada)
+    if not llm_client.modo_offline:
+        checks["groq"] = "configurado"
+    else:
+        checks["groq"] = "offline"
+
+    # Verificar WhatsApp (si está configurada)
+    from whatsapp import whatsapp_client
+    checks["whatsapp"] = "configurado" if whatsapp_client.activo else "no configurado"
+
+    all_ok = all(
+        v == "ok" or v in ("configurado", "offline", "no configurado")
+        for v in checks.values()
+    )
+
     return {
         "servicio": "Werken-mapu API",
-        "version": "0.1.0",
-        "estado": "operativo",
+        "version": "1.0.0",
+        "estado": "operativo" if all_ok else "degradado",
+        "checks": checks,
         "offline": llm_client.modo_offline,
     }
 
@@ -195,36 +235,15 @@ async def clima(
             status_code=400,
             detail=f"Cultivo '{cultivo}' no soportado. Usar: {', '.join(CULTIVOS_VALIDOS)}",
         )
-    cultivo = cast(Cultivo, cultivo)
 
-    try:
-        raw = await clima_client.fetch_forecast(lat, lon)
-    except Exception as e:
-        logger.error(f"OpenMeteo forecast error: {e}")
-        raise HTTPException(status_code=502, detail="Error al consultar datos climáticos")
-
-    hourly = clima_client.parse_hourly(raw)
-    daily = clima_client.extract_daily(raw)
-
-    # Evaluar reglas por cultivo
-    resultado = evaluar_reglas(hourly, cultivo)
-
-    # Construir resumen desde datos diarios
-    hoy = daily[0] if daily else {}
-    resumen = {
-        "temp_min": hoy.get("temp_min", "N/D"),
-        "temp_max": hoy.get("temp_max", "N/D"),
-        "lluvia_total_24h": hoy.get("precipitacion_total", 0.0),
-        "viento_max": hoy.get("viento_max", "N/D"),
-        "dias_forecast": config.forecast_days,
-    }
+    ctx = await obtener_contexto_clima(lat, lon, cast(Cultivo, cultivo))
 
     return ClimaResponse(
-        cultivo=resultado["cultivo"],
+        cultivo=ctx["resultado"]["cultivo"],
         ubicacion={"lat": lat, "lon": lon},
-        alertas=resultado["alertas"],
-        resumen=resumen,
-        raw_forecast=raw,
+        alertas=ctx["resultado"]["alertas"],
+        resumen=ctx["resumen"],
+        raw_forecast=ctx["raw"],
     )
 
 
@@ -234,31 +253,17 @@ async def clima(
 @app.post("/preguntar", response_model=PreguntarResponse)
 async def preguntar(req: PreguntarRequest, request: Request):
     _check_rate_limit(f"preguntar:{request.client.host if request.client else 'unknown'}", 10)
-    # Obtener contexto climático para el LLM
     if req.cultivo not in CULTIVOS_VALIDOS:
         raise HTTPException(status_code=400, detail=f"Cultivo no soportado: {req.cultivo}")
-    cultivo = cast(Cultivo, req.cultivo)
-    resultado = {"alertas": [], "cultivo": req.cultivo}
-    resumen = {}
-    try:
-        raw = await clima_client.fetch_forecast(req.lat, req.lon)
-        hourly = clima_client.parse_hourly(raw)
-        resultado = evaluar_reglas(hourly, cultivo)
 
-        daily = clima_client.extract_daily(raw)
-        hoy = daily[0] if daily else {}
-        resumen = {
-            "temp_min": hoy.get("temp_min", "N/D"),
-            "temp_max": hoy.get("temp_max", "N/D"),
-            "lluvia_total_24h": hoy.get("precipitacion_total", 0.0),
-            "viento_max": hoy.get("viento_max", "N/D"),
-        }
-    except Exception:
-        logger.warning("No se pudo obtener clima para /preguntar — LLM en modo offline")
+    try:
+        ctx = await obtener_contexto_clima(req.lat, req.lon, cast(Cultivo, req.cultivo))
+    except HTTPException:
+        ctx = {"resultado": {"alertas": [], "cultivo": req.cultivo}, "resumen": {}}
 
     contexto = {
-        "resumen": resumen,
-        "alertas": resultado.get("alertas", []),
+        "resumen": ctx.get("resumen", {}),
+        "alertas": ctx["resultado"].get("alertas", []),
     }
 
     respuesta = await llm_client.preguntar(req.pregunta, contexto, req.cultivo)
@@ -424,22 +429,14 @@ async def recomendaciones(
 ):
     if cultivo not in CULTIVOS_VALIDOS:
         raise HTTPException(status_code=400, detail=f"Cultivo no soportado: {cultivo}")
-    cultivo = cast(Cultivo, cultivo)
 
-    try:
-        raw = await clima_client.fetch_forecast(lat, lon)
-        hourly = clima_client.parse_hourly(raw)
-        daily = clima_client.extract_daily(raw)
-    except Exception as e:
-        logger.error(f"OpenMeteo forecast error en /recomendaciones: {e}")
-        raise HTTPException(status_code=502, detail="Error al consultar datos climáticos")
-
-    recs_raw = generar_recomendaciones(hourly, daily, cultivo)
+    ctx = await obtener_contexto_clima(lat, lon, cast(Cultivo, cultivo))
+    recs_raw = generar_recomendaciones(ctx["hourly"], ctx["daily"], cast(Cultivo, cultivo))
 
     return RecomendacionResponse(
         cultivo=cultivo,
         ubicacion={"lat": lat, "lon": lon},
-        dia=daily[0]["dia"] if daily else "",
+        dia=ctx["daily"][0]["dia"] if ctx["daily"] else "",
         recomendaciones=[
             RecomendacionItem(**r) for r in recs_raw
         ],

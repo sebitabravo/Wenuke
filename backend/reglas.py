@@ -1,12 +1,43 @@
-"""Motor de reglas por cultivo — dominio puro, cero I/O."""
+"""Motor de reglas por cultivo — dominio puro, cero I/O.
+Los umbrales se cargan desde reglas.yaml (si existe) con fallback a diccionario hardcodeado.
+"""
 
+import logging
+from pathlib import Path
 from typing import Literal
+
+logger = logging.getLogger("wenuke.reglas")
 
 Cultivo = Literal["papa", "trigo", "manzano", "general"]
 
+_REGLAS_CACHE: dict | None = None
+
+
+def cargar_reglas() -> dict:
+    """Carga umbrales desde reglas.yaml. Si no existe o falla, usa hardcodeados."""
+    global _REGLAS_CACHE
+    if _REGLAS_CACHE is not None:
+        return _REGLAS_CACHE
+
+    yaml_path = Path(__file__).parent / "reglas.yaml"
+    if yaml_path.exists():
+        try:
+            import yaml  # type: ignore[import-untyped,import-not-found]
+
+            with open(yaml_path, encoding="utf-8") as f:
+                _REGLAS_CACHE = yaml.safe_load(f)
+            logger.info("Reglas cargadas desde reglas.yaml")
+            return _REGLAS_CACHE
+        except Exception as e:
+            logger.warning(f"No se pudo cargar reglas.yaml: {e}. Usando hardcodeadas.")
+
+    _REGLAS_CACHE = _REGLAS_HARDCODEADAS
+    return _REGLAS_CACHE
+
+
 # Umbrales por cultivo: temp_min (°C), lluvia_max_24h (mm), viento_max (km/h),
 # precip_hora_max (mm/h proxy granizo), y umbrales para recomendaciones agronómicas.
-REGLAS: dict[Cultivo, dict] = {
+_REGLAS_HARDCODEADAS: dict[Cultivo, dict] = {
     "papa": {
         "nombre": "Papa",
         "temp_min": 0.0,
@@ -122,7 +153,7 @@ def _severidad_granizo(precip_hora: float, umbral: float) -> str:
 
 def evaluar_reglas(forecast_hourly: list[dict], cultivo: Cultivo = "general") -> dict:
     """Evalúa datos horarios contra reglas del cultivo. Retorna alertas encontradas."""
-    reglas = REGLAS.get(cultivo, REGLAS["general"])
+    reglas = cargar_reglas().get(cultivo, cargar_reglas()["general"])
     alertas: list[dict] = []
 
     # Acumular lluvia por día
@@ -221,7 +252,7 @@ def generar_recomendaciones(forecast_hourly: list[dict], daily: list[dict], cult
     hoy = daily[0]
     manana = daily[1] if len(daily) > 1 else hoy
 
-    reglas = REGLAS.get(cultivo, REGLAS["general"])
+    reglas = cargar_reglas().get(cultivo, cargar_reglas()["general"])
     nombre = reglas["nombre"]
 
     temp_min_hoy = hoy.get("temp_min") or 0
