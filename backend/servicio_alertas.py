@@ -70,7 +70,7 @@ async def ejecutar_chequeo_alertas() -> dict:
             })
 
     return {
-        "enviadas": sum(len(d["alertas"]) for d in detalle),
+        "enviadas": sum(d["cantidad_alertas"] for d in detalle),
         "usuarios_afectados": len(usuarios_alertados),
         "detalle": detalle,
         "envios_fallidos": envios_fallidos,

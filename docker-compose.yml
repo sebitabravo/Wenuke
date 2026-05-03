@@ -1,15 +1,21 @@
 services:
   backend:
-    build: .
+    build: ./backend
     ports:
       - "8000:8000"
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY:-}
       - WHATSAPP_TOKEN=${WHATSAPP_TOKEN:-}
       - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID:-}
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
+      - TURSO_DATABASE_URL=${TURSO_DATABASE_URL:-}
+      - TURSO_AUTH_TOKEN=${TURSO_AUTH_TOKEN:-}
       - DB_PATH=/data/wenuke.db
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:8000
     volumes:
+      - ./backend:/app
       - wenuke_data:/data
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
     image: nginx:alpine
@@ -17,7 +23,6 @@ services:
       - "3000:80"
     volumes:
       - ./frontend:/usr/share/nginx/html:ro
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - backend
 
